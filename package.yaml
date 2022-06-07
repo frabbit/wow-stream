@@ -1,0 +1,116 @@
+name:                wow-stream
+version:             0.1.0.0
+github:              "githubuser/wow-stream"
+license:             BSD3
+author:              "Author name here"
+maintainer:          "example@example.com"
+copyright:           "2022 Author name here"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/wow-stream#readme>
+
+
+# Good Defaults can be found here: https://lexi-lambda.github.io/blog/2018/02/10/an-opinionated-guide-to-haskell-in-2018/
+
+dependencies:
+- base >= 4.7 && < 5
+- text
+- QuickCheck
+- quickcheck-instances
+- record-dot-preprocessor >= 0.2.14
+- record-hasfield
+
+default-extensions:
+  - TypeOperators
+  - InstanceSigs
+  - KindSignatures
+  - FlexibleContexts
+  - FlexibleInstances
+  - LambdaCase
+  - NamedFieldPuns
+  - OverloadedStrings
+  - TypeApplications
+  - RankNTypes
+  - DataKinds
+  - ScopedTypeVariables
+  - MultiParamTypeClasses
+  - GeneralizedNewtypeDeriving
+  - FunctionalDependencies
+  - UndecidableInstances
+  - DuplicateRecordFields
+  - TypeSynonymInstances
+  - TypeFamilies
+  - QualifiedDo
+  - TemplateHaskell
+  - GADTs
+  - ConstraintKinds
+  - PatternSynonyms
+  - PartialTypeSignatures
+  - ViewPatterns
+  - NoImplicitPrelude
+
+ghc-options:
+  - -Wall
+  - -Wcompat
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wredundant-constraints
+  - -Wno-simplifiable-class-constraints
+  - -Wno-unused-do-bind
+  - -Wmissing-methods
+  - -Werror=missing-fields
+  - -fplugin=RecordDotPreprocessor
+
+
+library:
+  source-dirs: src
+
+
+executables:
+  wow-stream-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - wow-stream
+
+# Note
+# Adding src during development here makes the ide experience much smoother. It's caused by a stack bug that leads to staleness problems when adding new files or types to the habits library
+# related issues: https://github.com/haskell/haskell-language-server/issues/2058, https://github.com/haskell/haskell-language-server/issues/1822 https://github.com/haskell/haskell-language-server/issues/366
+#
+
+_test-ghc-options: &test-ghc-options
+  - -threaded
+  - -rtsopts
+  - -with-rtsopts=-A128m
+  - -with-rtsopts=-N2m
+
+_test-dependencies: &test-ghc-dependencies
+  - hspec
+  - hspec-expectations-lifted
+  - testcontainers >= 0.3.0.1
+
+tests:
+  habits-test-all:
+    main:                Main.hs
+    source-dirs:
+    - src
+    - test-common
+    - test-unit
+    - test-integration
+    - test-e2e
+    ghc-options: *test-ghc-options
+    dependencies: *test-ghc-dependencies
