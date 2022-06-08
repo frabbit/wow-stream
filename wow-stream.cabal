@@ -27,6 +27,7 @@ library
       Wow.Options
       Wow.Twitter
       Wow.Websocket
+      Wow.Websocket.Client
   other-modules:
       Paths_wow_stream
   hs-source-dirs:
@@ -74,6 +75,7 @@ library
     , lens
     , monad-control
     , mtl
+    , network
     , optparse-applicative
     , quickcheck-instances
     , record-dot-preprocessor >=0.2.14
@@ -81,6 +83,7 @@ library
     , text
     , transformers
     , unliftio
+    , websockets
   default-language: Haskell2010
 
 executable wow-stream-exe
@@ -132,6 +135,7 @@ executable wow-stream-exe
     , lens
     , monad-control
     , mtl
+    , network
     , optparse-applicative
     , quickcheck-instances
     , record-dot-preprocessor >=0.2.14
@@ -139,6 +143,7 @@ executable wow-stream-exe
     , text
     , transformers
     , unliftio
+    , websockets
     , wow-stream
   default-language: Haskell2010
 
@@ -149,6 +154,7 @@ test-suite habits-test-all
       Wow.Options
       Wow.Twitter
       Wow.Websocket
+      Wow.Websocket.Client
       Paths_wow_stream
   hs-source-dirs:
       src
@@ -201,6 +207,7 @@ test-suite habits-test-all
     , lens
     , monad-control
     , mtl
+    , network
     , optparse-applicative
     , quickcheck-instances
     , record-dot-preprocessor >=0.2.14
@@ -209,4 +216,5 @@ test-suite habits-test-all
     , text
     , transformers
     , unliftio
+    , websockets
   default-language: Haskell2010

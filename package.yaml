@@ -44,6 +44,7 @@ dependencies:
 - aeson
 - dotenv
 - websockets
+- network
 
 
 default-extensions:
