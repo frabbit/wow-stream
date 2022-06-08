@@ -28,6 +28,7 @@ library
       Wow.Twitter
       Wow.Websocket
       Wow.Websocket.Client
+      Wow.WowApp
   other-modules:
       Paths_wow_stream
   hs-source-dirs:
@@ -155,6 +156,7 @@ test-suite habits-test-all
       Wow.Twitter
       Wow.Websocket
       Wow.Websocket.Client
+      Wow.WowApp
       Paths_wow_stream
   hs-source-dirs:
       src

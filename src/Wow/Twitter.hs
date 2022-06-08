@@ -35,8 +35,6 @@ import qualified Data.Text.Encoding as BS
 import qualified Data.Text as Text
 import Data.Maybe (fromJust, isJust)
 
-
-
 newtype Env = Env
   { manager :: Manager
   }
