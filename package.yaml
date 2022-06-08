@@ -29,6 +29,22 @@ dependencies:
 - quickcheck-instances
 - record-dot-preprocessor >= 0.2.14
 - record-hasfield
+- optparse-applicative
+- http-conduit
+- http-client-tls
+- mtl
+- transformers
+- lens
+- monad-control
+- unliftio
+- exceptions
+- conduit
+- bytestring
+- http-client
+- aeson
+- dotenv
+- websockets
+
 
 default-extensions:
   - TypeOperators
