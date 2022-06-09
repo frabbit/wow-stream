@@ -63,19 +63,19 @@ setClientFilter c tweetFilter = updateClient (set c.name)
       | client.name /= name = client
       | otherwise = client{tweetFilter = tweetFilter}
 
-broadcastSilent :: Text -> ServerState -> IO ()
+broadcastSilent :: (MonadIO m) => Text -> ServerState -> m ()
 broadcastSilent message s = do
-  forM_ s.clients $ \c -> WS.sendTextData c.conn message
+  liftIO $ forM_ s.clients $ \c -> WS.sendTextData c.conn message
 
-broadcastSilentWhen :: (Client -> Bool) -> Text -> ServerState -> IO ()
+broadcastSilentWhen :: (MonadIO m) => (Client -> Bool) -> Text -> ServerState -> m ()
 broadcastSilentWhen f message s = do
-  forM_ s.clients sendIf
+  liftIO $ forM_ s.clients sendIf
   where
     sendIf c = if f c then WS.sendTextData c.conn message else pure ()
 
-broadcast :: Text -> ServerState -> IO ()
+broadcast :: (MonadIO m) => Text -> ServerState -> m ()
 broadcast message s = do
-  T.putStrLn message
+  liftIO $ T.putStrLn message
   broadcastSilent message s
 
 main :: IO ()
