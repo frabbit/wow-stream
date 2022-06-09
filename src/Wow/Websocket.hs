@@ -9,10 +9,12 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import GHC.Conc (atomically, readTVar, TVar, newTVarIO, readTVarIO)
 import Data.Char (isSpace, isPunctuation)
-import UnliftIO (modifyTVar)
+import UnliftIO (modifyTVar, MonadUnliftIO, toIO)
 import Control.Exception (finally)
 import Control.Monad (forM_)
 import Control.Monad.Cont (forever)
+import Debug.Trace (traceShowM)
+import Control.Monad.IO.Class (MonadIO (liftIO))
 
 data Client = Client {
   name :: Text,
@@ -81,62 +83,73 @@ main = do
   state <- newTVarIO newServerState
   WS.runServer "127.0.0.1" 8130 $ application state
 
-application :: TVar ServerState -> WS.PendingConnection -> IO ()
+withPingThreadUnliftIO :: (MonadIO m, MonadUnliftIO m) => WS.Connection -> Int -> m () -> m a -> m a
+withPingThreadUnliftIO conn interval pingAction appAction = do
+  pingAction' <- toIO pingAction
+  appAction' <- toIO appAction
+  liftIO $ WS.withPingThread conn interval pingAction' appAction'
+
+
+application :: forall m . (MonadIO m, MonadUnliftIO m) => TVar ServerState -> WS.PendingConnection -> m ()
 application state pending = do
-  conn <- WS.acceptRequest pending
-  WS.withPingThread conn 30 (pure ()) $ do
-      msg <- WS.receiveData conn
-      clients <- readTVarIO state
-      case msg of
-        _ | not (prefix `T.isPrefixOf` msg) ->
-            WS.sendTextData conn ("Wrong announcement" :: Text)
-          | any ($ client.name)
-            [T.null, T.any isPunctuation, T.any isSpace] ->
-                WS.sendTextData conn ("Name cannot " <>
-                  "contain punctuation or whitespace, and " <>
-                  "cannot be empty" :: Text)
-          | clientExists client clients -> WS.sendTextData conn ("User already exists" :: Text)
-          | otherwise -> flip finally disconnect $ do
-              (s', s) <- atomically $ do
-                s' <- readTVar state
-                modifyTVar state $ addClient client
-                s <- readTVar state
-                pure (s', s)
-              WS.sendTextData conn $
-                  "Welcome! Users: " <>
-                  T.intercalate ", " (map (.name) s.clients)
-              broadcast (client.name <> " joinded") s'
-              talk client state
-          where
-            prefix ="Hi! I am "
-            client = Client { name = T.drop (T.length prefix) msg, conn, listening = False, tweetFilter = Nothing }
-            disconnect = do
-              s <- atomically $ do
-                s' <- readTVar state
-                modifyTVar state $ \s -> removeClient client s
-                pure s'
-              broadcast (client.name <> "disconnected") s
+  traceShowM (WS.pendingRequest pending)
+  conn <- liftIO $ WS.acceptRequest pending
+  withPingThreadUnliftIO conn 30 (pure ()) $ do
+    msg <- liftIO $ WS.receiveData conn
+    clients <- liftIO $ readTVarIO state
+    case msg of
+      _ | not (prefix `T.isPrefixOf` msg) ->
+          liftIO $ WS.sendTextData conn ("Wrong announcement" :: Text)
+        | any ($ client.name)
+          [T.null, T.any isPunctuation, T.any isSpace] ->
+              liftIO $ WS.sendTextData conn ("Name cannot " <>
+                "contain punctuation or whitespace, and " <>
+                "cannot be empty" :: Text)
+        | clientExists client clients -> liftIO $ WS.sendTextData conn ("User already exists" :: Text)
+        | otherwise -> liftIO $ flip finally disconnect $ do
+            (s', s) <- atomically $ do
+              s' <- readTVar state
+              modifyTVar state $ addClient client
+              s <- readTVar state
+              pure (s', s)
+            WS.sendTextData conn $
+                "Welcome! Users: " <>
+                T.intercalate ", " (map (.name) s.clients)
+            broadcast (client.name <> " joinded") s'
+            talk client state
+        where
+          prefix =":greeting "
+          client = Client { name = T.drop (T.length prefix) msg, conn, listening = False, tweetFilter = Nothing }
+          disconnect = do
+            s <- atomically $ do
+              s' <- readTVar state
+              modifyTVar state $ \s -> removeClient client s
+              pure s'
+            broadcast (client.name <> "disconnected") s
 
 
-talk :: Client -> TVar ServerState -> IO ()
+
+
+
+talk :: (MonadIO m) => Client -> TVar ServerState -> m ()
 talk c state = forever $ do
-  msg <- WS.receiveData c.conn
+  msg <- liftIO $ WS.receiveData c.conn
   case msg of
     _ | msg == ":clients" -> do
-          s <- readTVarIO state
-          WS.sendTextData c.conn $ "All users: " <> T.intercalate ", " (map (.name) s.clients)
+          s <- liftIO $ readTVarIO state
+          liftIO $ WS.sendTextData c.conn $ "All users: " <> T.intercalate ", " (map (.name) s.clients)
           pure ()
     _ | msg == ":listen" -> do
-          WS.sendTextData c.conn ("listen acknowledged."::Text)
-          atomically $ modifyTVar state $ setClientListening c True
+          liftIO $ WS.sendTextData c.conn ("listen acknowledged."::Text)
+          liftIO $ atomically $ modifyTVar state $ setClientListening c True
           pure ()
     _ | ":filter " `T.isPrefixOf` msg -> do
           let filterWord = T.drop 8 msg
-          WS.sendTextData c.conn ("filter acknowledged."::Text)
-          atomically $ modifyTVar state $ setClientFilter c (Just filterWord)
+          liftIO $ WS.sendTextData c.conn ("filter acknowledged."::Text)
+          liftIO $ atomically $ modifyTVar state $ setClientFilter c (Just filterWord)
           pure ()
     _ | msg == ":unlisten" -> do
-          WS.sendTextData c.conn ("unlisten acknowledged."::Text)
-          atomically $ modifyTVar state $ setClientListening c False
+          liftIO $ WS.sendTextData c.conn ("unlisten acknowledged."::Text)
+          liftIO $ atomically $ modifyTVar state $ setClientListening c False
           pure ()
-      | otherwise -> readTVarIO state >>= broadcast (c.name `mappend` ": " `mappend` msg)
+      | otherwise -> liftIO $ readTVarIO state >>= broadcast (c.name `mappend` ": " `mappend` msg)
