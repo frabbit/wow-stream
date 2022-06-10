@@ -39,7 +39,14 @@ packages:
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
 #
-# extra-deps: []
+extra-deps:
+- polysemy-conc-0.8.0.1@sha256:58777e7209e7aae33eb840464234b569a7e11b8045c62699cf0fb0ad607fb754,6108
+- incipit-core-0.2.0.0@sha256:a8677251690ea95be107d0d1998f5d09ec863d48f9d591454c96daefbfce7c49,3301
+- polysemy-resume-0.4.0.0@sha256:d56529f434d5406482423ed8f3342f3eb075374f6428fffe23b4c1d8e29a19e4,4226
+- polysemy-time-0.4.0.0@sha256:b11dcf5cd12a0a80404b4eb337604a77985aac72863ea897e00f1331b5176da4,4479
+- incipit-base-0.2.0.0@sha256:97964204df8f942a1903fb4ce3171c1121a7a3411a0bd2de7ec1eacbb127129e,3494
+
+
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

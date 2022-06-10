@@ -15,6 +15,8 @@ import Control.Monad (forM_)
 import Control.Monad.Cont (forever)
 import Debug.Trace (traceShowM)
 import Control.Monad.IO.Class (MonadIO (liftIO))
+import Polysemy (Sem, Member, Embed)
+import Wow.Effects.WebSocket (WebSocket, withPingThread)
 
 data Client = Client {
   name :: Text,
@@ -69,6 +71,7 @@ broadcastSilent message s = do
 
 broadcastSilentWhen :: (MonadIO m) => (Client -> Bool) -> Text -> ServerState -> m ()
 broadcastSilentWhen f message s = do
+  traceShowM s.clients
   liftIO $ forM_ s.clients sendIf
   where
     sendIf c = if f c then WS.sendTextData c.conn message else pure ()
@@ -127,7 +130,42 @@ application state pending = do
               pure s'
             broadcast (client.name <> "disconnected") s
 
-
+applicationPoly :: forall r. (Member WebSocket r, Member (Embed IO) r) => TVar ServerState -> WS.PendingConnection -> Sem r ()
+applicationPoly state pending = do
+  traceShowM (WS.pendingRequest pending)
+  conn <- liftIO $ WS.acceptRequest pending
+  withPingThread conn 30 (pure ()) $ do
+    msg <- liftIO $ WS.receiveData conn
+    clients <- liftIO $ readTVarIO state
+    case msg of
+      _ | not (prefix `T.isPrefixOf` msg) ->
+          liftIO $ WS.sendTextData conn ("Wrong announcement" :: Text)
+        | any ($ client.name)
+          [T.null, T.any isPunctuation, T.any isSpace] ->
+              liftIO $ WS.sendTextData conn ("Name cannot " <>
+                "contain punctuation or whitespace, and " <>
+                "cannot be empty" :: Text)
+        | clientExists client clients -> liftIO $ WS.sendTextData conn ("User already exists" :: Text)
+        | otherwise -> liftIO $ flip finally disconnect $ do
+            (s', s) <- atomically $ do
+              s' <- readTVar state
+              modifyTVar state $ addClient client
+              s <- readTVar state
+              pure (s', s)
+            WS.sendTextData conn $
+                "Welcome! Users: " <>
+                T.intercalate ", " (map (.name) s.clients)
+            broadcast (client.name <> " joinded") s'
+            talk client state
+        where
+          prefix =":greeting "
+          client = Client { name = T.drop (T.length prefix) msg, conn, listening = False, tweetFilter = Nothing }
+          disconnect = do
+            s <- atomically $ do
+              s' <- readTVar state
+              modifyTVar state $ \s -> removeClient client s
+              pure s'
+            broadcast (client.name <> "disconnected") s
 
 
 

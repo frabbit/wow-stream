@@ -3,7 +3,7 @@
 {-# HLINT ignore "Use newtype instead of data" #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# HLINT ignore "Redundant lambda" #-}
-module Wow.Twitter where
+module Wow.Twitter.Types where
 
 import Conduit (ConduitT, runConduit, (.|), sinkNull, mapC)
 import Control.Monad.Catch (MonadThrow)
@@ -192,47 +192,7 @@ addRule rule = do
           }
       pure r
 
-newtype MyIO a = MyIO {unMyIO :: IO a} deriving (Monad, Functor, MonadIO, Applicative, MonadUnliftIO)
-
 type NaturalTransformation f g = forall a . f a -> g a
-
-filteredStreamPrinted :: IO ()
-filteredStreamPrinted = unMyIO $ filteredStream printIt
-  where
-  printIt :: (ConduitT StreamEntry StreamEntry MyIO ())
-  printIt = iterM (MyIO . print)
-
-filteredStream' :: forall n. (MonadUnliftIO n) => (StreamEntry -> n ()) -> n ()
-filteredStream' f = filteredStream $ iterM f
-
-
-
-
-filteredStream :: forall n. (MonadUnliftIO n) => (ConduitT StreamEntry StreamEntry n ()) -> n ()
-filteredStream doIt = do
-  manager <- newManager
-  let env = Env { manager }
-  nt' <- askRunInIO
-  liftIO $ runAppT env $ do
-    req <- liftIO mkReq  :: AppT IO _
-    withResponse req (handleResponse nt') :: AppT IO _
-  where
-    mkReq = do
-      initReq <- parseRequest "https://api.twitter.com/2/tweets/search/stream"
-      token <- tokenFromEnv
-      let r =
-            initReq
-              { method = "GET",
-                requestHeaders = requestHeaders initReq <> [("Authorization", "Bearer " <> token)],
-                responseTimeout = responseTimeoutMicro (20 * 1000000) -- one sec
-              }
-      pure r
-    handleResponse :: (MonadIO w) => (n () -> IO ()) -> Response (ConduitT () BS.ByteString n ()) -> AppT w ()
-    handleResponse nt = liftIO . nt . withBody . responseBody
-      where
-        withBody :: ConduitT _ BS.ByteString n () -> n ()
-        withBody body = runConduit ( body .| mapC decodeStrict .| filter isJust .| mapC fromJust .| doIt .| sinkNull )
-
 
 showEnv :: IO ()
 showEnv = do

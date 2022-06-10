@@ -17,7 +17,7 @@ import Network.HTTP.Client.Conduit
     withResponse, responseTimeoutMicro,
   )
 
-import Wow.Twitter
+import Wow.Twitter.Types
     ( tokenFromEnv,
       runAppT,
       Env(Env, manager),
@@ -69,7 +69,6 @@ main :: IO ()
 main = do
   loadDotEnv
   pollingApp & appToIo
-
 
 httpLongPollingToIO :: forall r a . (Member (Embed IO) r) => (forall x . Sem (HttpLongPolling ': r) x -> IO x) -> Sem (HttpLongPolling ': r) a -> Sem r a
 httpLongPollingToIO nt = interpretH $ \case

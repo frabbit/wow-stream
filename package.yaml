@@ -48,6 +48,8 @@ dependencies:
 - polysemy
 - http-types
 - case-insensitive
+- extra
+- polysemy-conc
 
 default-extensions:
   - TypeOperators

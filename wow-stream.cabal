@@ -27,8 +27,10 @@ library
       Wow.Effects.Env
       Wow.Effects.Errors
       Wow.Effects.HttpLongPolling
+      Wow.Effects.WebSocket
       Wow.Options
-      Wow.Twitter
+      Wow.Twitter.FilteredStream
+      Wow.Twitter.Types
       Wow.Websocket
       Wow.Websocket.Client
       Wow.WowApp
@@ -74,6 +76,7 @@ library
     , conduit
     , dotenv
     , exceptions
+    , extra
     , http-client
     , http-client-tls
     , http-conduit
@@ -84,6 +87,7 @@ library
     , network
     , optparse-applicative
     , polysemy
+    , polysemy-conc
     , quickcheck-instances
     , record-dot-preprocessor >=0.2.14
     , record-hasfield
@@ -137,6 +141,7 @@ executable wow-stream-exe
     , conduit
     , dotenv
     , exceptions
+    , extra
     , http-client
     , http-client-tls
     , http-conduit
@@ -147,6 +152,7 @@ executable wow-stream-exe
     , network
     , optparse-applicative
     , polysemy
+    , polysemy-conc
     , quickcheck-instances
     , record-dot-preprocessor >=0.2.14
     , record-hasfield
@@ -164,8 +170,10 @@ test-suite habits-test-all
       Wow.Effects.Env
       Wow.Effects.Errors
       Wow.Effects.HttpLongPolling
+      Wow.Effects.WebSocket
       Wow.Options
-      Wow.Twitter
+      Wow.Twitter.FilteredStream
+      Wow.Twitter.Types
       Wow.Websocket
       Wow.Websocket.Client
       Wow.WowApp
@@ -214,6 +222,7 @@ test-suite habits-test-all
     , conduit
     , dotenv
     , exceptions
+    , extra
     , hspec
     , hspec-expectations-lifted
     , http-client
@@ -226,6 +235,7 @@ test-suite habits-test-all
     , network
     , optparse-applicative
     , polysemy
+    , polysemy-conc
     , quickcheck-instances
     , record-dot-preprocessor >=0.2.14
     , record-hasfield
