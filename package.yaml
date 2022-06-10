@@ -45,7 +45,9 @@ dependencies:
 - dotenv
 - websockets
 - network
-
+- polysemy
+- http-types
+- case-insensitive
 
 default-extensions:
   - TypeOperators

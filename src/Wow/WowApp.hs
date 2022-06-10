@@ -11,7 +11,7 @@ import Conduit (ConduitT)
 import Data.Conduit.Combinators (iterM)
 
 filteredStreamBroadcast :: _ -> IO ()
-filteredStreamBroadcast var = filteredStream broadcastC id
+filteredStreamBroadcast var = filteredStream broadcastC
   where
   broadcastC :: (ConduitT StreamEntry StreamEntry IO ())
   broadcastC = iterM $ \s -> do

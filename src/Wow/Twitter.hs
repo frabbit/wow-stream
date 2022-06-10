@@ -2,6 +2,7 @@
 {-# HLINT ignore "Redundant bracket" #-}
 {-# HLINT ignore "Use newtype instead of data" #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# HLINT ignore "Redundant lambda" #-}
 module Wow.Twitter where
 
 import Conduit (ConduitT, runConduit, (.|), sinkNull, mapC)
@@ -21,7 +22,7 @@ import Network.HTTP.Client.Conduit
     responseTimeout,
     withResponse, responseTimeoutMicro, RequestBody (RequestBodyLBS),
   )
-import UnliftIO (MonadUnliftIO)
+import UnliftIO (MonadUnliftIO, askRunInIO)
 import Prelude hiding (filter)
 import Network.HTTP.Conduit (httpLbs)
 import Data.Aeson (Value(Object, Array), FromJSON (parseJSON), (.:), decode, encode, ToJSON (toJSON), object, decodeStrict)
@@ -196,18 +197,25 @@ newtype MyIO a = MyIO {unMyIO :: IO a} deriving (Monad, Functor, MonadIO, Applic
 type NaturalTransformation f g = forall a . f a -> g a
 
 filteredStreamPrinted :: IO ()
-filteredStreamPrinted = filteredStream printIt unMyIO
+filteredStreamPrinted = unMyIO $ filteredStream printIt
   where
   printIt :: (ConduitT StreamEntry StreamEntry MyIO ())
   printIt = iterM (MyIO . print)
 
-filteredStream :: forall m . (MonadIO m) => (ConduitT StreamEntry StreamEntry m ()) -> (NaturalTransformation m IO) -> IO ()
-filteredStream doIt nt = do
+filteredStream' :: forall n. (MonadUnliftIO n) => (StreamEntry -> n ()) -> n ()
+filteredStream' f = filteredStream $ iterM f
+
+
+
+
+filteredStream :: forall n. (MonadUnliftIO n) => (ConduitT StreamEntry StreamEntry n ()) -> n ()
+filteredStream doIt = do
   manager <- newManager
   let env = Env { manager }
-  runAppT env $ do
-    req <- liftIO mkReq
-    withResponse req handleResponse :: AppT IO ()
+  nt' <- askRunInIO
+  liftIO $ runAppT env $ do
+    req <- liftIO mkReq  :: AppT IO _
+    withResponse req (handleResponse nt') :: AppT IO _
   where
     mkReq = do
       initReq <- parseRequest "https://api.twitter.com/2/tweets/search/stream"
@@ -219,11 +227,12 @@ filteredStream doIt nt = do
                 responseTimeout = responseTimeoutMicro (20 * 1000000) -- one sec
               }
       pure r
-    handleResponse :: (MonadIO w) => Response (ConduitT () BS.ByteString m ()) -> AppT w ()
-    handleResponse = liftIO . nt . withBody . responseBody
+    handleResponse :: (MonadIO w) => (n () -> IO ()) -> Response (ConduitT () BS.ByteString n ()) -> AppT w ()
+    handleResponse nt = liftIO . nt . withBody . responseBody
       where
-        withBody :: ConduitT _ BS.ByteString m () -> m ()
+        withBody :: ConduitT _ BS.ByteString n () -> n ()
         withBody body = runConduit ( body .| mapC decodeStrict .| filter isJust .| mapC fromJust .| doIt .| sinkNull )
+
 
 showEnv :: IO ()
 showEnv = do

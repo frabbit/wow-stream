@@ -24,6 +24,9 @@ source-repository head
 
 library
   exposed-modules:
+      Wow.Effects.Env
+      Wow.Effects.Errors
+      Wow.Effects.HttpLongPolling
       Wow.Options
       Wow.Twitter
       Wow.Websocket
@@ -67,17 +70,20 @@ library
     , aeson
     , base >=4.7 && <5
     , bytestring
+    , case-insensitive
     , conduit
     , dotenv
     , exceptions
     , http-client
     , http-client-tls
     , http-conduit
+    , http-types
     , lens
     , monad-control
     , mtl
     , network
     , optparse-applicative
+    , polysemy
     , quickcheck-instances
     , record-dot-preprocessor >=0.2.14
     , record-hasfield
@@ -127,17 +133,20 @@ executable wow-stream-exe
     , aeson
     , base >=4.7 && <5
     , bytestring
+    , case-insensitive
     , conduit
     , dotenv
     , exceptions
     , http-client
     , http-client-tls
     , http-conduit
+    , http-types
     , lens
     , monad-control
     , mtl
     , network
     , optparse-applicative
+    , polysemy
     , quickcheck-instances
     , record-dot-preprocessor >=0.2.14
     , record-hasfield
@@ -152,6 +161,9 @@ test-suite habits-test-all
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      Wow.Effects.Env
+      Wow.Effects.Errors
+      Wow.Effects.HttpLongPolling
       Wow.Options
       Wow.Twitter
       Wow.Websocket
@@ -198,6 +210,7 @@ test-suite habits-test-all
     , aeson
     , base >=4.7 && <5
     , bytestring
+    , case-insensitive
     , conduit
     , dotenv
     , exceptions
@@ -206,11 +219,13 @@ test-suite habits-test-all
     , http-client
     , http-client-tls
     , http-conduit
+    , http-types
     , lens
     , monad-control
     , mtl
     , network
     , optparse-applicative
+    , polysemy
     , quickcheck-instances
     , record-dot-preprocessor >=0.2.14
     , record-hasfield
