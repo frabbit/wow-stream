@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant bracket" #-}
 {-# HLINT ignore "Use newtype instead of data" #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# HLINT ignore "Redundant lambda" #-}
 module Wow.Twitter.FilteredStream where
 

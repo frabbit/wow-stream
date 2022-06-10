@@ -5,7 +5,6 @@
 {-# HLINT ignore "Redundant lambda" #-}
 module Wow.Twitter.Types where
 
-import Conduit (ConduitT, runConduit, (.|), sinkNull, mapC)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadReader, ReaderT (ReaderT, runReaderT), MonadPlus (mzero))
@@ -19,22 +18,19 @@ import Network.HTTP.Client.Conduit
     parseRequest,
     requestHeaders,
     requestBody,
-    responseTimeout,
-    withResponse, responseTimeoutMicro, RequestBody (RequestBodyLBS),
+    RequestBody (RequestBodyLBS),
   )
-import UnliftIO (MonadUnliftIO, askRunInIO)
+import UnliftIO (MonadUnliftIO)
 import Prelude hiding (filter)
 import Network.HTTP.Conduit (httpLbs)
-import Data.Aeson (Value(Object, Array), FromJSON (parseJSON), (.:), decode, encode, ToJSON (toJSON), object, decodeStrict)
+import Data.Aeson (Value(Object, Array), FromJSON (parseJSON), (.:), decode, encode, ToJSON (toJSON), object)
 import Data.Text (Text)
-import Data.Conduit.Combinators (iterM, filter)
 
 import Control.Monad (void)
 import Configuration.Dotenv ( loadFile, defaultConfig )
 import System.Environment (getEnv, getEnvironment)
 import qualified Data.Text.Encoding as BS
 import qualified Data.Text as Text
-import Data.Maybe (fromJust, isJust)
 
 newtype Env = Env
   { manager :: Manager
