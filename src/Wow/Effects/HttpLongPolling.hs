@@ -77,28 +77,28 @@ httpLongPollingToIO nt = interpretH $ \case
     callback0 <- bindT callback
     is <- getInitialStateT
     let cb = \bs -> void . nt . callback0 $ (bs <$ is)
-    embed (f1 cb) >>= pureT
-    where
-      f1 :: _ => _ -> IO _
-      f1 cb = do
-        manager <- newManager :: IO _
-        let env = Env { manager }
-        runAppT env $ do
-          req <- liftIO mkReq  :: AppT IO _
-          withResponse req handleResponse :: AppT IO _
-        where
-          mkReq = do
-            initReq <- parseRequest $ T.unpack request.url
-            token <- tokenFromEnv
-            let r =
-                  initReq
-                    { method = request.method,
-                      requestHeaders = requestHeaders initReq <> request.headers <> [("Authorization", "Bearer " <> token)],
-                      responseTimeout = responseTimeoutMicro (20 * 1000000) -- one sec
-                    }
-            pure r
-          handleResponse :: (MonadIO w) => Response (ConduitT () BS.ByteString IO ()) -> AppT w ()
-          handleResponse = liftIO . withBody . responseBody
-            where
-              withBody :: ConduitT _ BS.ByteString IO () -> IO ()
-              withBody body = runConduit ( body .| iterM cb .| sinkNull )
+    embed (execHttpLongPolling request cb) >>= pureT
+
+execHttpLongPolling :: () => Request -> (BS.ByteString -> IO ()) -> IO ()
+execHttpLongPolling request cb = do
+  manager <- newManager :: IO _
+  let env = Env { manager }
+  runAppT env $ do
+    req <- liftIO mkReq  :: AppT IO _
+    withResponse req handleResponse :: AppT IO _
+  where
+    mkReq = do
+      initReq <- parseRequest $ T.unpack request.url
+      token <- tokenFromEnv
+      let r =
+            initReq
+              { method = request.method,
+                requestHeaders = requestHeaders initReq <> request.headers <> [("Authorization", "Bearer " <> token)],
+                responseTimeout = responseTimeoutMicro (20 * 1000000) -- one sec
+              }
+      pure r
+    handleResponse :: (MonadIO w) => Response (ConduitT () BS.ByteString IO ()) -> AppT w ()
+    handleResponse = liftIO . withBody . responseBody
+      where
+        withBody :: ConduitT _ BS.ByteString IO () -> IO ()
+        withBody body = runConduit ( body .| iterM cb .| sinkNull )
