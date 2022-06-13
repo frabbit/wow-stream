@@ -7,7 +7,7 @@ import qualified Network.WebSockets as WS
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import GHC.Conc (atomically, readTVar, TVar, newTVarIO, readTVarIO)
+import GHC.Conc (atomically, readTVar, TVar, readTVarIO)
 import Data.Char (isSpace, isPunctuation)
 import UnliftIO (modifyTVar, MonadUnliftIO, toIO)
 import Control.Exception (finally)
@@ -81,57 +81,14 @@ broadcast message s = do
   liftIO $ T.putStrLn message
   broadcastSilent message s
 
-main :: IO ()
-main = do
-  state <- newTVarIO newServerState
-  WS.runServer "127.0.0.1" 8130 $ application state
-
 withPingThreadUnliftIO :: (MonadIO m, MonadUnliftIO m) => WS.Connection -> Int -> m () -> m a -> m a
 withPingThreadUnliftIO conn interval pingAction appAction = do
   pingAction' <- toIO pingAction
   appAction' <- toIO appAction
   liftIO $ WS.withPingThread conn interval pingAction' appAction'
 
-
-application :: forall m . (MonadIO m, MonadUnliftIO m) => TVar ServerState -> WS.PendingConnection -> m ()
-application state pending = do
-  traceShowM (WS.pendingRequest pending)
-  conn <- liftIO $ WS.acceptRequest pending
-  withPingThreadUnliftIO conn 30 (pure ()) $ do
-    msg <- liftIO $ WS.receiveData conn
-    clients <- liftIO $ readTVarIO state
-    case msg of
-      _ | not (prefix `T.isPrefixOf` msg) ->
-          liftIO $ WS.sendTextData conn ("Wrong announcement" :: Text)
-        | any ($ client.name)
-          [T.null, T.any isPunctuation, T.any isSpace] ->
-              liftIO $ WS.sendTextData conn ("Name cannot " <>
-                "contain punctuation or whitespace, and " <>
-                "cannot be empty" :: Text)
-        | clientExists client clients -> liftIO $ WS.sendTextData conn ("User already exists" :: Text)
-        | otherwise -> liftIO $ flip finally disconnect $ do
-            (s', s) <- atomically $ do
-              s' <- readTVar state
-              modifyTVar state $ addClient client
-              s <- readTVar state
-              pure (s', s)
-            WS.sendTextData conn $
-                "Welcome! Users: " <>
-                T.intercalate ", " (map (.name) s.clients)
-            broadcast (client.name <> " joinded") s'
-            talk client state
-        where
-          prefix =":greeting "
-          client = Client { name = T.drop (T.length prefix) msg, conn, listening = False, tweetFilter = Nothing }
-          disconnect = do
-            s <- atomically $ do
-              s' <- readTVar state
-              modifyTVar state $ \s -> removeClient client s
-              pure s'
-            broadcast (client.name <> "disconnected") s
-
-applicationPoly :: forall r. (Member WebSocket r, Member (Embed IO) r) => TVar ServerState -> WS.PendingConnection -> Sem r ()
-applicationPoly state pending = do
+webSocketApp :: forall r. (Member WebSocket r, Member (Embed IO) r) => TVar ServerState -> WS.PendingConnection -> Sem r ()
+webSocketApp state pending = do
   traceShowM (WS.pendingRequest pending)
   conn <- liftIO $ WS.acceptRequest pending
   withPingThread conn 30 (pure ()) $ do
@@ -166,8 +123,6 @@ applicationPoly state pending = do
               modifyTVar state $ \s -> removeClient client s
               pure s'
             broadcast (client.name <> "disconnected") s
-
-
 
 talk :: (MonadIO m) => Client -> TVar ServerState -> m ()
 talk c state = forever $ do

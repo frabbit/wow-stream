@@ -5,7 +5,7 @@ module Wow.WowApp where
 import qualified Data.Text as T
 import Prelude
 import qualified Wow.Effects.WebSocket as WSE
-import Wow.Websocket (newServerState, broadcastSilentWhen, ServerState, applicationPoly)
+import Wow.Websocket (newServerState, broadcastSilentWhen, ServerState, webSocketApp)
 import GHC.Conc (newTVarIO, readTVarIO, TVar)
 import Wow.Twitter.Types (StreamEntry, loadDotEnv)
 
@@ -55,7 +55,7 @@ app = do
   liftIO loadDotEnv
   state <- liftIO $ newTVarIO newServerState
   a1 <- async $ killOnQuit "arg" $ filteredStreamBroadcast state
-  a2 <- async $ killOnQuit "arg" $ WSE.runServer "127.0.0.1" 8130 $ applicationPoly state
+  a2 <- async $ killOnQuit "arg" $ WSE.runServer "127.0.0.1" 8130 $ webSocketApp state
   await a1
   await a2
   pure ()
