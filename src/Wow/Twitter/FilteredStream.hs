@@ -26,7 +26,7 @@ import Configuration.Dotenv ( loadFile, defaultConfig )
 import System.Environment (getEnvironment)
 import Data.Maybe (fromJust, isJust)
 import Wow.Twitter.Types (StreamEntry, Env (..), AppT, runAppT, tokenFromEnv)
-import Polysemy (Sem, Member)
+import Polysemy (Sem, Member, Embed)
 import Wow.Effects.HttpLongPolling (HttpLongPolling, Request (Request), url, headers)
 import qualified Wow.Effects.HttpLongPolling as HLP
 
@@ -74,7 +74,7 @@ showEnv = do
 loadDotEnv :: _ => _ ()
 loadDotEnv = void $ loadFile defaultConfig
 
-filteredStreamPoly :: forall r . ( Member HttpLongPolling r) =>(StreamEntry -> Sem r ()) -> Sem r ()
+filteredStreamPoly :: forall r . ( Member HttpLongPolling r, Member (Embed IO) r) =>(StreamEntry -> Sem r ()) -> Sem r ()
 filteredStreamPoly handler' = do
   let
     handler = handler1 . decodeStrict
@@ -82,9 +82,10 @@ filteredStreamPoly handler' = do
         handler1 = \case
           Just x -> handler' x
           Nothing -> pure ()
+  token <- tokenFromEnv
   let request = Request {
     HLP.url = "https://api.twitter.com/2/tweets/search/stream",
-    HLP.headers = [],
+    HLP.headers = [("Authorization", "Bearer " <> token)],
     HLP.method = "GET"
   }
   HLP.httpLongPolling request handler

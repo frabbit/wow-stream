@@ -88,11 +88,10 @@ execHttpLongPolling request cb = do
   where
     mkReq = do
       initReq <- parseRequest $ T.unpack request.url
-      token <- tokenFromEnv
       let r =
             initReq
               { method = request.method,
-                requestHeaders = requestHeaders initReq <> request.headers <> [("Authorization", "Bearer " <> token)],
+                requestHeaders = requestHeaders initReq <> request.headers,
                 responseTimeout = responseTimeoutMicro (20 * 1000000) -- one sec
               }
       pure r
