@@ -26,6 +26,7 @@ library
   exposed-modules:
       Wow.Effects.Env
       Wow.Effects.Errors
+      Wow.Effects.Finally
       Wow.Effects.HttpLongPolling
       Wow.Effects.WebSocket
       Wow.Options
@@ -169,6 +170,7 @@ test-suite habits-test-all
   other-modules:
       Wow.Effects.Env
       Wow.Effects.Errors
+      Wow.Effects.Finally
       Wow.Effects.HttpLongPolling
       Wow.Effects.WebSocket
       Wow.Options

@@ -10,10 +10,13 @@ import qualified Network.WebSockets as WS
 import Polysemy (makeSem, Member, Embed, Sem, interpretH, runT, embed, bindT, getInitialStateT, pureT)
 import Data.Functor (($>))
 import Control.Monad (void)
+import Data.Text (Text)
 
 data WebSocket m a where
   WithPingThread :: WS.Connection -> Int -> m () -> m a -> WebSocket m a
   RunServer :: String -> Int -> (WS.PendingConnection -> m ()) -> WebSocket m ()
+  ReceiveData :: (WS.WebSocketsData a) => WS.Connection -> WebSocket m a
+  SendTextData :: WS.Connection -> Text -> WebSocket m ()
 
 makeSem ''WebSocket
 
@@ -33,6 +36,9 @@ webSocketToIO nt = interpretH $ \case
     o <- embed $ do
       WS.runServer address port app'
     pureT o
-
+  ReceiveData conn -> do
+    pureT =<< (embed $ WS.receiveData conn)
+  SendTextData conn txt -> do
+    pureT =<< (embed $ WS.sendTextData conn txt)
 
 

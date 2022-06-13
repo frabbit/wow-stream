@@ -18,6 +18,7 @@ import Data.Function ((&))
 import Polysemy.Conc.Effect.Interrupt (Interrupt, killOnQuit)
 import Polysemy.Conc (interpretInterrupt, Critical, Race, interpretCritical, interpretRace)
 import Wow.Effects.WebSocket (WebSocket, webSocketToIO)
+import Wow.Effects.Finally (Finally, finallyToIo)
 
 filteredStreamBroadcast :: forall r . (Member HttpLongPolling r, Member (Embed IO) r) => TVar ServerState -> Sem r ()
 filteredStreamBroadcast var = filteredStream broadcastC
@@ -25,7 +26,6 @@ filteredStreamBroadcast var = filteredStream broadcastC
   broadcastC :: _ => StreamEntry -> Sem r ()
   broadcastC s = do
       let when client = client.listening && toBool (fmap (`T.isInfixOf` s.tweet.text) client.tweetFilter)
-
       serverState <- liftIO $ readTVarIO var
       liftIO $ broadcastSilentWhen when s.tweet.text serverState
       pure ()
@@ -33,11 +33,12 @@ filteredStreamBroadcast var = filteredStream broadcastC
       toBool (Just x) = x
       toBool Nothing = True
 
-type AppContraints r = (WebSocket ': HttpLongPolling ': Interrupt ': Critical ':  Race ': Async ': Embed IO ': Final IO ': '[])
+type AppContraints r = (Finally ': WebSocket ': HttpLongPolling ': Interrupt ': Critical ':  Race ': Async ': Embed IO ': Final IO ': '[])
 appToIo :: Sem (AppContraints r) a -> IO a
 appToIo app' = app'
-    & webSocketToIO appToIo
-    & httpLongPollingToIO (appToIo . raise)
+    & finallyToIo appToIo
+    & webSocketToIO (appToIo . raise)
+    & httpLongPollingToIO (appToIo . raise . raise)
     & interpretInterrupt
     & interpretCritical
     & interpretRace
@@ -50,7 +51,7 @@ main :: IO ()
 main = do
   app & appToIo
 
-app :: ( Member WebSocket r, Member Async r, Member (Embed IO) r, Member HttpLongPolling r, Member Interrupt r) =>Sem r ()
+app :: ( Member Finally r, Member WebSocket r, Member Async r, Member (Embed IO) r, Member HttpLongPolling r, Member Interrupt r) =>Sem r ()
 app = do
   liftIO loadDotEnv
   state <- liftIO $ newTVarIO newServerState
