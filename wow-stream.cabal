@@ -24,6 +24,7 @@ source-repository head
 
 library
   exposed-modules:
+      Wow.Data.Command
       Wow.Effects.DotEnv
       Wow.Effects.Env
       Wow.Effects.Errors
@@ -89,6 +90,7 @@ library
     , mtl
     , network
     , optparse-applicative
+    , parsec
     , polysemy
     , polysemy-conc
     , quickcheck-instances
@@ -155,6 +157,7 @@ executable wow-stream-exe
     , mtl
     , network
     , optparse-applicative
+    , parsec
     , polysemy
     , polysemy-conc
     , quickcheck-instances
@@ -168,10 +171,11 @@ executable wow-stream-exe
     , wow-stream
   default-language: Haskell2010
 
-test-suite habits-test-all
+test-suite wow-stream-test-all
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      Wow.Data.Command
       Wow.Effects.DotEnv
       Wow.Effects.Env
       Wow.Effects.Errors
@@ -185,6 +189,9 @@ test-suite habits-test-all
       Wow.Websocket
       Wow.Websocket.Client
       Wow.WowApp
+      Wow.TestPrelude
+      UnitSpec
+      Wow.Data.CommandSpec
       Paths_wow_stream
   hs-source-dirs:
       src
@@ -242,6 +249,7 @@ test-suite habits-test-all
     , mtl
     , network
     , optparse-applicative
+    , parsec
     , polysemy
     , polysemy-conc
     , quickcheck-instances

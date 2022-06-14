@@ -45,7 +45,8 @@ extra-deps:
 - polysemy-resume-0.4.0.0@sha256:d56529f434d5406482423ed8f3342f3eb075374f6428fffe23b4c1d8e29a19e4,4226
 - polysemy-time-0.4.0.0@sha256:b11dcf5cd12a0a80404b4eb337604a77985aac72863ea897e00f1331b5176da4,4479
 - incipit-base-0.2.0.0@sha256:97964204df8f942a1903fb4ce3171c1121a7a3411a0bd2de7ec1eacbb127129e,3494
-
+- git: https://github.com/frabbit/testcontainers-hs.git
+  commit: 27c37a93180289d42facc0f126436ed5ef0e9760
 
 
 # Override default flag values for local packages and extra-deps

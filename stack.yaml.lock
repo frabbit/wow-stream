@@ -39,6 +39,17 @@ packages:
       sha256: accae3a5a6cec9d8a93f71892d84f1a1b140c1754778f4fa2f19283ea72e2c1d
   original:
     hackage: incipit-base-0.2.0.0@sha256:97964204df8f942a1903fb4ce3171c1121a7a3411a0bd2de7ec1eacbb127129e,3494
+- completed:
+    name: testcontainers
+    version: 0.3.1.0
+    git: https://github.com/frabbit/testcontainers-hs.git
+    pantry-tree:
+      size: 1135
+      sha256: 814cce5fe24cb86c1b2419fae71854bc0c45e1a02494e3b8507eddb37b5590ad
+    commit: 27c37a93180289d42facc0f126436ed5ef0e9760
+  original:
+    git: https://github.com/frabbit/testcontainers-hs.git
+    commit: 27c37a93180289d42facc0f126436ed5ef0e9760
 snapshots:
 - completed:
     size: 618509

@@ -51,6 +51,7 @@ dependencies:
 - extra
 - polysemy-conc
 - unix
+- parsec
 
 default-extensions:
   - TypeOperators
@@ -126,7 +127,7 @@ _test-dependencies: &test-ghc-dependencies
   - testcontainers >= 0.3.0.1
 
 tests:
-  habits-test-all:
+  wow-stream-test-all:
     main:                Main.hs
     source-dirs:
     - src
