@@ -10,7 +10,7 @@ import GHC.Conc (newTVarIO, readTVarIO, TVar)
 import Wow.Twitter.Types (StreamEntry, loadDotEnv)
 
 import Conduit (MonadIO (..))
-import Polysemy (Sem, Member, Embed, embedToFinal, runFinal, Final, raise)
+import Polysemy (Sem, Member, Embed, embedToFinal, runFinal, Final, raise, raise_)
 import Wow.Effects.HttpLongPolling (HttpLongPolling, httpLongPollingToIO)
 import Wow.Twitter.FilteredStream (filteredStream)
 import Polysemy.Async (Async, async, asyncToIOFinal, await)
@@ -19,6 +19,7 @@ import Polysemy.Conc.Effect.Interrupt (Interrupt, killOnQuit)
 import Polysemy.Conc (interpretInterrupt, Critical, Race, interpretCritical, interpretRace)
 import Wow.Effects.WebSocket (WebSocket, webSocketToIO)
 import Wow.Effects.Finally (Finally, finallyToIo)
+import Wow.Effects.STM (STM, stmToIo)
 
 filteredStreamBroadcast :: forall r . (Member HttpLongPolling r, Member (Embed IO) r) => TVar ServerState -> Sem r ()
 filteredStreamBroadcast var = filteredStream broadcastC
@@ -33,12 +34,13 @@ filteredStreamBroadcast var = filteredStream broadcastC
       toBool (Just x) = x
       toBool Nothing = True
 
-type AppContraints r = (Finally ': WebSocket ': HttpLongPolling ': Interrupt ': Critical ':  Race ': Async ': Embed IO ': Final IO ': '[])
+type AppContraints r = (STM ': WebSocket ': Finally ': HttpLongPolling ':Interrupt ': Critical ':  Race ': Async ': Embed IO ': Final IO ': '[])
 appToIo :: Sem (AppContraints r) a -> IO a
 appToIo app' = app'
-    & finallyToIo appToIo
-    & webSocketToIO (appToIo . raise)
-    & httpLongPollingToIO (appToIo . raise . raise)
+    & stmToIo
+    & webSocketToIO (appToIo . raise_)
+    & finallyToIo (appToIo . raise_)
+    & httpLongPollingToIO (appToIo . raise_)
     & interpretInterrupt
     & interpretCritical
     & interpretRace
@@ -51,12 +53,12 @@ main :: IO ()
 main = do
   app & appToIo
 
-app :: ( Member Finally r, Member WebSocket r, Member Async r, Member (Embed IO) r, Member HttpLongPolling r, Member Interrupt r) =>Sem r ()
+app :: (  Member STM r, Member Finally r, Member WebSocket r, Member Async r, Member (Embed IO) r, Member HttpLongPolling r, Member Interrupt r) =>Sem r ()
 app = do
   liftIO loadDotEnv
   state <- liftIO $ newTVarIO newServerState
   a1 <- async $ killOnQuit "arg" $ filteredStreamBroadcast state
-  a2 <- async $ killOnQuit "arg" $ WSE.runServer "127.0.0.1" 8130 $ webSocketApp state
+  a2 <- async $ killOnQuit "arg" $ WSE.runServer "127.0.0.1" 8131 $ webSocketApp state
   await a1
   await a2
   pure ()

@@ -4,28 +4,15 @@
 {-# HLINT ignore "Redundant lambda" #-}
 module Wow.Twitter.FilteredStream where
 
-import Conduit (ConduitT, runConduit, (.|), sinkNull, mapC)
-import Control.Monad.IO.Class (MonadIO (liftIO))
-import qualified Data.ByteString as BS
-import Network.HTTP.Client.Conduit
-  ( Response (responseBody),
-    method,
-    newManager,
-    parseRequest,
-    requestHeaders,
-    responseTimeout,
-    withResponse, responseTimeoutMicro,
-  )
-import UnliftIO (MonadUnliftIO, askRunInIO)
+import Control.Monad.IO.Class (MonadIO)
+import UnliftIO (MonadUnliftIO)
 import Prelude hiding (filter)
 import Data.Aeson (decodeStrict)
-import Data.Conduit.Combinators (iterM, filter)
 
 import Control.Monad (void)
 import Configuration.Dotenv ( loadFile, defaultConfig )
 import System.Environment (getEnvironment)
-import Data.Maybe (fromJust, isJust)
-import Wow.Twitter.Types (StreamEntry, Env (..), AppT, runAppT, tokenFromEnv)
+import Wow.Twitter.Types (StreamEntry, tokenFromEnv)
 import Polysemy (Sem, Member, Embed)
 import Wow.Effects.HttpLongPolling (HttpLongPolling, Request (Request), url, headers)
 import qualified Wow.Effects.HttpLongPolling as HLP

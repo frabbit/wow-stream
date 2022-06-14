@@ -17,6 +17,7 @@ data WebSocket m a where
   RunServer :: String -> Int -> (WS.PendingConnection -> m ()) -> WebSocket m ()
   ReceiveData :: (WS.WebSocketsData a) => WS.Connection -> WebSocket m a
   SendTextData :: WS.Connection -> Text -> WebSocket m ()
+  AcceptRequest :: WS.PendingConnection -> WebSocket m WS.Connection
 
 makeSem ''WebSocket
 
@@ -33,12 +34,12 @@ webSocketToIO nt = interpretH $ \case
     appF <- bindT app
     is <- getInitialStateT
     let app' pc = void . nt . appF $ pc <$ is
-    o <- embed $ do
-      WS.runServer address port app'
-    pureT o
+    pureT =<< (embed $ WS.runServer address port app')
   ReceiveData conn -> do
     pureT =<< (embed $ WS.receiveData conn)
   SendTextData conn txt -> do
     pureT =<< (embed $ WS.sendTextData conn txt)
+  AcceptRequest pendingConn -> do
+    pureT =<< (embed $ WS.acceptRequest pendingConn)
 
 

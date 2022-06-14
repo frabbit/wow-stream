@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use newtype instead of data" #-}
 {-# HLINT ignore "Move brackets to avoid $" #-}
+{-# HLINT ignore "Use readTVarIO" #-}
 module Wow.Websocket where
 
 import Prelude
@@ -8,7 +9,7 @@ import qualified Network.WebSockets as WS
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import GHC.Conc (atomically, readTVar, TVar, readTVarIO)
+import GHC.Conc (readTVar, TVar, readTVarIO)
 import Data.Char (isSpace, isPunctuation)
 import UnliftIO (modifyTVar, MonadUnliftIO, toIO)
 import Control.Monad (forM_)
@@ -16,8 +17,9 @@ import Control.Monad.Cont (forever)
 import Debug.Trace (traceShowM)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Polysemy (Sem, Member, Embed)
-import Wow.Effects.WebSocket (WebSocket, withPingThread, receiveData, sendTextData)
+import Wow.Effects.WebSocket (WebSocket, withPingThread, receiveData, sendTextData, acceptRequest)
 import Wow.Effects.Finally (finally, Finally)
+import Wow.Effects.STM (STM, atomically)
 
 data Client = Client {
   name :: Text,
@@ -76,9 +78,9 @@ broadcastSilentWhen f message s = do
   where
     sendIf c = if f c then WS.sendTextData c.conn message else pure ()
 
-broadcast :: (Member WebSocket r, Member (Embed IO) r) => Text -> ServerState -> Sem r ()
+broadcast :: (Member WebSocket r) => Text -> ServerState -> Sem r ()
 broadcast message s = do
-  liftIO $ T.putStrLn message
+  traceShowM message
   broadcastSilent message s
 
 withPingThreadUnliftIO :: (MonadIO m, MonadUnliftIO m) => WS.Connection -> Int -> m () -> m a -> m a
@@ -87,13 +89,13 @@ withPingThreadUnliftIO conn interval pingAction appAction = do
   appAction' <- toIO appAction
   liftIO $ WS.withPingThread conn interval pingAction' appAction'
 
-webSocketApp :: forall r. (Member Finally r, Member WebSocket r, Member (Embed IO) r) => TVar ServerState -> WS.PendingConnection -> Sem r ()
+webSocketApp :: forall r. (Member STM r, Member Finally r, Member WebSocket r) => TVar ServerState -> WS.PendingConnection -> Sem r ()
 webSocketApp state pending = do
-  traceShowM (WS.pendingRequest pending)
-  conn <- liftIO $ WS.acceptRequest pending
+  --traceShowM (WS.pendingRequest pending)
+  conn <- acceptRequest pending
   withPingThread conn 30 (pure ()) $ do
     msg <- receiveData conn
-    clients <- liftIO $ readTVarIO state
+    clients <- atomically $ readTVar state
     case msg of
       _ | not (prefix `T.isPrefixOf` msg) ->
           sendTextData conn ("Wrong announcement" :: Text)
@@ -104,7 +106,7 @@ webSocketApp state pending = do
                 "cannot be empty" :: Text)
         | clientExists client clients -> sendTextData conn ("User already exists" :: Text)
         | otherwise -> flip finally disconnect $ do
-            (s', s) <- liftIO $ atomically $ do
+            (s', s) <- atomically $ do
               s' <- readTVar state
               modifyTVar state $ addClient client
               s <- readTVar state
@@ -118,31 +120,33 @@ webSocketApp state pending = do
           prefix =":greeting "
           client = Client { name = T.drop (T.length prefix) msg, conn, listening = False, tweetFilter = Nothing }
           disconnect = do
-            s <- liftIO $ atomically $ do
-              s' <- readTVar state
+            traceShowM "disconnect"
+            s <- atomically $ do
               modifyTVar state $ \s -> removeClient client s
-              pure s'
+              readTVar state
+            traceShowM "disconnect broadcast..."
+            traceShowM s
             broadcast (client.name <> " disconnected") s
 
-talk :: (Member WebSocket r, Member (Embed IO) r) => Client -> TVar ServerState -> Sem r ()
+talk :: (Member STM r, Member WebSocket r) => Client -> TVar ServerState -> Sem r ()
 talk c state = forever $ do
-  msg <- liftIO $ WS.receiveData c.conn
+  msg <- receiveData c.conn
   case msg of
     _ | msg == ":clients" -> do
-          s <- liftIO $ readTVarIO state
-          liftIO $ WS.sendTextData c.conn $ "All users: " <> T.intercalate ", " (map (.name) s.clients)
+          s <- atomically $ readTVar state
+          sendTextData c.conn $ "All users: " <> T.intercalate ", " (map (.name) s.clients)
           pure ()
     _ | msg == ":listen" -> do
-          liftIO $ WS.sendTextData c.conn ("listen acknowledged."::Text)
-          liftIO $ atomically $ modifyTVar state $ setClientListening c True
+          sendTextData c.conn ("listen acknowledged."::Text)
+          atomically $ modifyTVar state $ setClientListening c True
           pure ()
     _ | ":filter " `T.isPrefixOf` msg -> do
           let filterWord = T.drop 8 msg
-          liftIO $ WS.sendTextData c.conn ("filter acknowledged."::Text)
-          liftIO $ atomically $ modifyTVar state $ setClientFilter c (Just filterWord)
+          sendTextData c.conn ("filter acknowledged."::Text)
+          atomically $ modifyTVar state $ setClientFilter c (Just filterWord)
           pure ()
     _ | msg == ":unlisten" -> do
-          liftIO $ WS.sendTextData c.conn ("unlisten acknowledged."::Text)
-          liftIO $ atomically $ modifyTVar state $ setClientListening c False
+          sendTextData c.conn ("unlisten acknowledged."::Text)
+          atomically $ modifyTVar state $ setClientListening c False
           pure ()
-      | otherwise -> (liftIO $ readTVarIO state) >>= broadcast (c.name `mappend` ": " `mappend` msg)
+      | otherwise -> (atomically $ readTVar state) >>= broadcast (c.name `mappend` ": " `mappend` msg)

@@ -28,6 +28,7 @@ library
       Wow.Effects.Errors
       Wow.Effects.Finally
       Wow.Effects.HttpLongPolling
+      Wow.Effects.STM
       Wow.Effects.WebSocket
       Wow.Options
       Wow.Twitter.FilteredStream
@@ -172,6 +173,7 @@ test-suite habits-test-all
       Wow.Effects.Errors
       Wow.Effects.Finally
       Wow.Effects.HttpLongPolling
+      Wow.Effects.STM
       Wow.Effects.WebSocket
       Wow.Options
       Wow.Twitter.FilteredStream

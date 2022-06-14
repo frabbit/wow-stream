@@ -29,4 +29,4 @@ clientApp conn = do
 
 
 main :: IO ()
-main = withSocketsDo $ WS.runClient "127.0.0.1" 8130 "/" clientApp
+main = withSocketsDo $ WS.runClient "127.0.0.1" 8131 "/" clientApp
