@@ -31,6 +31,8 @@ import Configuration.Dotenv ( loadFile, defaultConfig )
 import System.Environment (getEnv, getEnvironment)
 import qualified Data.Text.Encoding as BS
 import qualified Data.Text as Text
+import Polysemy (Embed, Member, Sem)
+import qualified Wow.Effects.Env as WE
 
 newtype Env = Env
   { manager :: Manager
@@ -46,6 +48,9 @@ instance HasHttpManager Env where
 
 tokenFromEnv :: (MonadIO m) => m BS.ByteString
 tokenFromEnv = BS.encodeUtf8 . Text.pack <$> liftIO (getEnv "TWITTER_BEARER_TOKEN")
+
+tokenFromEnvPoly :: forall r . (Member WE.Env r) => Sem r BS.ByteString
+tokenFromEnvPoly = BS.encodeUtf8 . Text.pack <$> (WE.getEnv "TWITTER_BEARER_TOKEN")
 
 data Rule = Rule {
   ruleId :: Text

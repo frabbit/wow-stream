@@ -24,6 +24,7 @@ source-repository head
 
 library
   exposed-modules:
+      Wow.Effects.DotEnv
       Wow.Effects.Env
       Wow.Effects.Errors
       Wow.Effects.Finally
@@ -95,6 +96,7 @@ library
     , record-hasfield
     , text
     , transformers
+    , unix
     , unliftio
     , websockets
   default-language: Haskell2010
@@ -160,6 +162,7 @@ executable wow-stream-exe
     , record-hasfield
     , text
     , transformers
+    , unix
     , unliftio
     , websockets
     , wow-stream
@@ -169,6 +172,7 @@ test-suite habits-test-all
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      Wow.Effects.DotEnv
       Wow.Effects.Env
       Wow.Effects.Errors
       Wow.Effects.Finally
@@ -246,6 +250,7 @@ test-suite habits-test-all
     , testcontainers >=0.3.0.1
     , text
     , transformers
+    , unix
     , unliftio
     , websockets
   default-language: Haskell2010

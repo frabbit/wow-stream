@@ -72,11 +72,11 @@ broadcastSilent :: (Member WebSocket r) => Text -> ServerState -> Sem r ()
 broadcastSilent message s = do
   forM_ s.clients $ \c -> sendTextData c.conn message
 
-broadcastSilentWhen :: (MonadIO m) => (Client -> Bool) -> Text -> ServerState -> m ()
+broadcastSilentWhen :: (Member WebSocket r) => (Client -> Bool) -> Text -> ServerState -> Sem r ()
 broadcastSilentWhen f message s = do
-  liftIO $ forM_ s.clients sendIf
+  forM_ s.clients sendIf
   where
-    sendIf c = if f c then WS.sendTextData c.conn message else pure ()
+    sendIf c = if f c then sendTextData c.conn message else pure ()
 
 broadcast :: (Member WebSocket r) => Text -> ServerState -> Sem r ()
 broadcast message s = do
@@ -91,8 +91,11 @@ withPingThreadUnliftIO conn interval pingAction appAction = do
 
 webSocketApp :: forall r. (Member STM r, Member Finally r, Member WebSocket r) => TVar ServerState -> WS.PendingConnection -> Sem r ()
 webSocketApp state pending = do
-  --traceShowM (WS.pendingRequest pending)
+  traceShowM "incoming connection"
+  traceShowM (WS.pendingRequest pending)
   conn <- acceptRequest pending
+  traceShowM ("after accept")
+
   withPingThread conn 30 (pure ()) $ do
     msg <- receiveData conn
     clients <- atomically $ readTVar state

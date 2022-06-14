@@ -11,6 +11,8 @@ import Polysemy (makeSem, Member, Embed, Sem, interpretH, runT, embed, bindT, ge
 import Data.Functor (($>))
 import Control.Monad (void)
 import Data.Text (Text)
+import Debug.Trace (traceShowM)
+import Control.Monad.IO.Class (liftIO)
 
 data WebSocket m a where
   WithPingThread :: WS.Connection -> Int -> m () -> m a -> WebSocket m a
@@ -34,7 +36,17 @@ webSocketToIO nt = interpretH $ \case
     appF <- bindT app
     is <- getInitialStateT
     let app' pc = void . nt . appF $ pc <$ is
-    pureT =<< (embed $ WS.runServer address port app')
+    let
+      app'' f = do
+        traceShowM "before app\n\n"
+        app' f
+        traceShowM "done ...\n\n"
+    x <- liftIO $ do
+      traceShowM "run server"
+      WS.runServer address port app''
+      traceShowM "run server done..."
+
+    pureT x
   ReceiveData conn -> do
     pureT =<< (embed $ WS.receiveData conn)
   SendTextData conn txt -> do
