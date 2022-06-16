@@ -8,18 +8,17 @@ import Prelude
 import qualified Network.WebSockets as WS
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
-import GHC.Conc (readTVar, TVar, readTVarIO)
-import Data.Char (isSpace, isPunctuation)
+import GHC.Conc (readTVar, TVar)
 import UnliftIO (modifyTVar, MonadUnliftIO, toIO)
 import Control.Monad (forM_)
 import Control.Monad.Cont (forever)
 import Debug.Trace (traceShowM)
 import Control.Monad.IO.Class (MonadIO (liftIO))
-import Polysemy (Sem, Member, Embed)
+import Polysemy (Sem, Member)
 import Wow.Effects.WebSocket (WebSocket, withPingThread, receiveData, sendTextData, acceptRequest)
 import Wow.Effects.Finally (finally, Finally)
 import Wow.Effects.STM (STM, atomically)
+import Wow.Data.Command (parseCommand, Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
 
 data Client = Client {
   name :: Text,
@@ -29,7 +28,7 @@ data Client = Client {
   }
 
 instance Show Client where
-  show c = "Client { name = " <> show c.name <> ", listening = " <> show c.listening <> ", tweetFilter = " <> show c.tweetFilter <> " }"
+  show c = "Client { name = " <> show c.name <> ", listening = " <> show c.listening <> ", tweetFilter = " <> show c.tweetFilter <> "  }"
 
 data ServerState = ServerState {
   clients :: [Client]
@@ -45,6 +44,9 @@ numClients = length . (.clients)
 clientExists :: Client -> ServerState -> Bool
 clientExists c = any ((== c.name) . (.name)) . (.clients)
 
+nameExists :: Text -> ServerState -> Bool
+nameExists name = any ((== name) . (.name)) . (.clients)
+
 addClient :: Client -> ServerState -> ServerState
 addClient c s = s{clients = c:s.clients }
 
@@ -54,19 +56,18 @@ removeClient client s = s{ clients = filter ((/= client.name) . (.name)) s.clien
 updateClient :: (Client -> Client) -> ServerState -> ServerState
 updateClient update s = s{clients = fmap update s.clients}
 
-setClientListening :: Client -> Bool -> ServerState -> ServerState
-setClientListening c listening = updateClient (set c.name)
+updateClientByName :: Client -> (Client -> Client) -> ServerState -> ServerState
+updateClientByName c update = updateClient (set c.name)
   where
     set name client
       | client.name /= name = client
-      | otherwise = client{listening = listening}
+      | otherwise = update client
+
+setClientListening :: Client -> Bool -> ServerState -> ServerState
+setClientListening c listening = updateClientByName c $ \cl -> cl{listening}
 
 setClientFilter :: Client -> Maybe Text -> ServerState -> ServerState
-setClientFilter c tweetFilter = updateClient (set c.name)
-  where
-    set name client
-      | client.name /= name = client
-      | otherwise = client{tweetFilter = tweetFilter}
+setClientFilter c tweetFilter = updateClientByName c $ \cl -> cl{tweetFilter}
 
 broadcastSilent :: (Member WebSocket r) => Text -> ServerState -> Sem r ()
 broadcastSilent message s = do
@@ -91,65 +92,70 @@ withPingThreadUnliftIO conn interval pingAction appAction = do
 
 webSocketApp :: forall r. (Member STM r, Member Finally r, Member WebSocket r) => TVar ServerState -> WS.PendingConnection -> Sem r ()
 webSocketApp state pending = do
-  traceShowM "incoming connection"
+  traceShowM ("incoming connection"::Text)
   traceShowM (WS.pendingRequest pending)
   conn <- acceptRequest pending
-  traceShowM ("after accept")
+  traceShowM ("after accept"::Text)
 
   withPingThread conn 30 (pure ()) $ do
     msg <- receiveData conn
-    clients <- atomically $ readTVar state
-    case msg of
-      _ | not (prefix `T.isPrefixOf` msg) ->
+    case parseCommand msg of
+      Left e -> do
+          traceShowM e
           sendTextData conn ("Wrong announcement" :: Text)
-        | any ($ client.name)
-          [T.null, T.any isPunctuation, T.any isSpace] ->
-              sendTextData conn ("Name cannot " <>
-                "contain punctuation or whitespace, and " <>
-                "cannot be empty" :: Text)
-        | clientExists client clients -> sendTextData conn ("User already exists" :: Text)
-        | otherwise -> flip finally disconnect $ do
-            (s', s) <- atomically $ do
-              s' <- readTVar state
-              modifyTVar state $ addClient client
-              s <- readTVar state
-              pure (s', s)
+      Right (CmdGreeting n) -> flip finally disconnect $ do
+        res <- atomically $ do
+          s' <- readTVar state
+          if nameExists n s' then
+            pure Nothing
+          else do
+            modifyTVar state $ addClient client
+            s <- readTVar state
+            pure $ Just (s', s)
+        case res of
+          Nothing -> sendTextData conn ("User already exists" :: Text)
+          Just (s', s) -> do
             sendTextData conn $
-                "Welcome! Users: " <>
-                T.intercalate ", " (map (.name) s.clients)
+              "Welcome! Users: " <>
+              T.intercalate ", " (map (.name) s.clients)
             broadcast (client.name <> " joined") s'
             talk client state
         where
-          prefix =":greeting "
-          client = Client { name = T.drop (T.length prefix) msg, conn, listening = False, tweetFilter = Nothing }
+          client = Client { name = n, conn, listening = False, tweetFilter = Nothing }
           disconnect = do
-            traceShowM "disconnect"
+            traceShowM ("disconnect"::Text)
             s <- atomically $ do
               modifyTVar state $ \s -> removeClient client s
               readTVar state
-            traceShowM "disconnect broadcast..."
+            traceShowM ("disconnect broadcast..."::Text)
             traceShowM s
             broadcast (client.name <> " disconnected") s
+      Right _ ->
+        sendTextData conn ("Unexpected command" :: Text)
 
 talk :: (Member STM r, Member WebSocket r) => Client -> TVar ServerState -> Sem r ()
 talk c state = forever $ do
   msg <- receiveData c.conn
-  case msg of
-    _ | msg == ":clients" -> do
+  case parseCommand msg of
+    Right CmdClients -> do
           s <- atomically $ readTVar state
           sendTextData c.conn $ "All users: " <> T.intercalate ", " (map (.name) s.clients)
           pure ()
-    _ | msg == ":listen" -> do
+    Right CmdListen -> do
           sendTextData c.conn ("listen acknowledged."::Text)
           atomically $ modifyTVar state $ setClientListening c True
           pure ()
-    _ | ":filter " `T.isPrefixOf` msg -> do
-          let filterWord = T.drop 8 msg
+    Right (CmdFilter f) -> do
           sendTextData c.conn ("filter acknowledged."::Text)
-          atomically $ modifyTVar state $ setClientFilter c (Just filterWord)
+          atomically $ modifyTVar state $ setClientFilter c (Just f)
           pure ()
-    _ | msg == ":unlisten" -> do
+    Right CmdUnlisten -> do
           sendTextData c.conn ("unlisten acknowledged."::Text)
           atomically $ modifyTVar state $ setClientListening c False
           pure ()
-      | otherwise -> (atomically $ readTVar state) >>= broadcast (c.name `mappend` ": " `mappend` msg)
+    Right (CmdTalk msg) ->
+          (atomically $ readTVar state) >>= broadcast (c.name `mappend` ": " `mappend` msg)
+    Right (CmdGreeting _) ->
+          sendTextData c.conn ("Greeting already succeeded" :: Text)
+    Left _ ->
+          sendTextData c.conn ("Unexpected command" :: Text)
