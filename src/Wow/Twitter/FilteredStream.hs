@@ -17,6 +17,7 @@ import Polysemy (Sem, Member)
 import Wow.Effects.HttpLongPolling (HttpLongPolling, Request (Request), url, headers)
 import Wow.Effects.Env (Env)
 import qualified Wow.Effects.HttpLongPolling as HLP
+import Debug.Trace (traceShowM)
 
 newtype MyIO a = MyIO {unMyIO :: IO a} deriving (Monad, Functor, MonadIO, Applicative, MonadUnliftIO)
 
@@ -37,7 +38,7 @@ filteredStream handler' = do
           Nothing -> pure ()
   token <- tokenFromEnvPoly
   let request = Request {
-    HLP.url = "https://api.twitter.com/2/tweets/search/stream",
+    HLP.url = "https://api.twitter.com/2/tweets/sample/stream",
     HLP.headers = [("Authorization", "Bearer " <> token)],
     HLP.method = "GET"
   }
