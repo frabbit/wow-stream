@@ -4,16 +4,16 @@ module Wow.Websocket.Client where
 
 import Prelude
 
-import Control.Concurrent (forkIO, Chan)
+import Control.Concurrent (forkIO)
 import Control.Monad (forever, unless)
 import Control.Monad.Trans (liftIO)
-import Network.Socket (withSocketsDo, AddrInfoFlag (AI_ADDRCONFIG))
+import Network.Socket (withSocketsDo)
 
 import qualified Network.WebSockets as WS
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Text (Text)
-import System.Console.Haskeline as HL
+import qualified System.Console.Haskeline as HL
 
 clientApp :: WS.ClientApp ()
 clientApp conn = do
