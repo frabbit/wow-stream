@@ -4,7 +4,6 @@ module Wow.Websocket.Client where
 
 import Prelude
 
-import Control.Concurrent (forkIO)
 import Control.Monad (forever, unless)
 import Control.Monad.Trans (liftIO)
 import Network.Socket (withSocketsDo)
@@ -14,12 +13,13 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Text (Text)
 import qualified System.Console.Haskeline as HL
+import Control.Concurrent.Async (async, cancel)
 
 clientApp :: WS.ClientApp ()
 clientApp conn = do
   putStrLn "connected"
 
-  _ <- forkIO $ forever $ do
+  fiber <- async $ forever $ do
     msg <- WS.receiveData conn
     liftIO $ T.putStrLn msg
 
@@ -31,7 +31,7 @@ clientApp conn = do
 
   loop
   WS.sendClose conn ("Bye!" :: Text)
-
+  cancel fiber
 
 main :: IO ()
 main = withSocketsDo $ WS.runClient "127.0.0.1" 8131 "/" clientApp
