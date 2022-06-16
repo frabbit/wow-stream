@@ -18,8 +18,7 @@ import Network.HTTP.Client.Conduit
   )
 
 import Wow.Twitter.Types
-    ( tokenFromEnv,
-      runAppT,
+    ( runAppT,
       Env(Env, manager),
       AppT,
       StreamEntry,
