@@ -1,8 +1,19 @@
+test-mode=-fbyte-code # or -fobject-code
 
+ghci-options= --no-build --ghc-options $(test-mode)
 
+ghci-disabled-warnings=  --ghci-options -Wno-unused-matches \
+	--ghci-options -Wno-redundant-constraints \
+	--ghci-options -Wno-unused-binds \
+	--ghci-options -Wno-partial-type-signatures \
+	--ghci-options -Wno-unused-imports \
+	--ghci-options -Wno-unused-foralls
+
+.PHONY: ghci
 ghci:
 	stack ghci wow-stream:lib
 
+.PHONY: test-unit-ghcid
 test-unit-ghcid:
 	reset && clear
 	ghcid --warnings --restart=wow-stream.cabal --reload=.reload-ghcid --test=UnitSpec.main \
