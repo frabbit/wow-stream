@@ -21,3 +21,12 @@ test-unit-ghcid:
 			$(ghci-options) $(ghci-disabled-warnings) \
 		wow-stream:wow-stream-test-all"
 	reset && clear
+
+.PHONY: test-e2e-ghcid
+test-e2e-ghcid:
+	reset && clear
+	ghcid --warnings --restart=wow-stream.cabal --reload=.reload-ghcid --test=E2ESpec.main \
+		--command="stack ghci \
+			$(ghci-options) $(ghci-disabled-warnings) \
+		wow-stream:wow-stream-test-all"
+	reset && clear

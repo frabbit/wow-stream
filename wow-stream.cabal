@@ -31,12 +31,14 @@ library
       Wow.Effects.Finally
       Wow.Effects.HttpLongPolling
       Wow.Effects.STM
+      Wow.Effects.TwitterStream
       Wow.Effects.WebSocket
       Wow.Options
       Wow.Twitter.FilteredStream
       Wow.Twitter.Types
       Wow.Websocket
       Wow.Websocket.Client
+      Wow.Websocket.TestClient
       Wow.WowApp
   other-modules:
       Paths_wow_stream
@@ -74,6 +76,7 @@ library
   build-depends:
       QuickCheck
     , aeson
+    , async
     , base >=4.7 && <5
     , bytestring
     , case-insensitive
@@ -81,21 +84,25 @@ library
     , dotenv
     , exceptions
     , extra
+    , haskeline
+    , hspec
     , http-client
     , http-client-tls
     , http-conduit
     , http-types
     , lens
+    , megaparsec
     , monad-control
     , mtl
     , network
     , optparse-applicative
-    , parsec
     , polysemy
     , polysemy-conc
     , quickcheck-instances
+    , random
     , record-dot-preprocessor >=0.2.14
     , record-hasfield
+    , stm
     , text
     , transformers
     , unix
@@ -141,6 +148,7 @@ executable wow-stream-exe
   build-depends:
       QuickCheck
     , aeson
+    , async
     , base >=4.7 && <5
     , bytestring
     , case-insensitive
@@ -148,21 +156,25 @@ executable wow-stream-exe
     , dotenv
     , exceptions
     , extra
+    , haskeline
+    , hspec
     , http-client
     , http-client-tls
     , http-conduit
     , http-types
     , lens
+    , megaparsec
     , monad-control
     , mtl
     , network
     , optparse-applicative
-    , parsec
     , polysemy
     , polysemy-conc
     , quickcheck-instances
+    , random
     , record-dot-preprocessor >=0.2.14
     , record-hasfield
+    , stm
     , text
     , transformers
     , unix
@@ -182,16 +194,20 @@ test-suite wow-stream-test-all
       Wow.Effects.Finally
       Wow.Effects.HttpLongPolling
       Wow.Effects.STM
+      Wow.Effects.TwitterStream
       Wow.Effects.WebSocket
       Wow.Options
       Wow.Twitter.FilteredStream
       Wow.Twitter.Types
       Wow.Websocket
       Wow.Websocket.Client
+      Wow.Websocket.TestClient
       Wow.WowApp
       Wow.TestPrelude
       UnitSpec
       Wow.Data.CommandSpec
+      E2ESpec
+      WowSpec
       Paths_wow_stream
   hs-source-dirs:
       src
@@ -231,6 +247,7 @@ test-suite wow-stream-test-all
   build-depends:
       QuickCheck
     , aeson
+    , async
     , base >=4.7 && <5
     , bytestring
     , case-insensitive
@@ -238,6 +255,7 @@ test-suite wow-stream-test-all
     , dotenv
     , exceptions
     , extra
+    , haskeline
     , hspec
     , hspec-expectations-lifted
     , http-client
@@ -245,16 +263,18 @@ test-suite wow-stream-test-all
     , http-conduit
     , http-types
     , lens
+    , megaparsec
     , monad-control
     , mtl
     , network
     , optparse-applicative
-    , parsec
     , polysemy
     , polysemy-conc
     , quickcheck-instances
+    , random
     , record-dot-preprocessor >=0.2.14
     , record-hasfield
+    , stm
     , testcontainers >=0.3.0.1
     , text
     , transformers

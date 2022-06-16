@@ -1,38 +1,39 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant bracket" #-}
 {-# HLINT ignore "Use newtype instead of data" #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# HLINT ignore "Redundant lambda" #-}
 module Wow.Twitter.Types where
 
+import Configuration.Dotenv (defaultConfig, loadFile)
+import Control.Monad (void)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO (liftIO))
-import Control.Monad.Reader (MonadReader, ReaderT (ReaderT, runReaderT), MonadPlus (mzero))
+import Control.Monad.Reader (MonadPlus (mzero), MonadReader, ReaderT (ReaderT, runReaderT))
+import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), Value (Array, Object), decode, encode, object, (.:), (.:?))
 import qualified Data.ByteString as BS
+import Data.Text (Text)
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as BS
 import Network.HTTP.Client.Conduit
   ( HasHttpManager (getHttpManager),
     Manager,
+    RequestBody (RequestBodyLBS),
     Response (responseBody),
     method,
     newManager,
     parseRequest,
-    requestHeaders,
     requestBody,
-    RequestBody (RequestBodyLBS),
+    requestHeaders,
   )
-import UnliftIO (MonadUnliftIO)
-import Prelude hiding (filter)
 import Network.HTTP.Conduit (httpLbs)
-import Data.Aeson (Value(Object, Array), FromJSON (parseJSON), (.:), decode, encode, ToJSON (toJSON), object)
-import Data.Text (Text)
-
-import Control.Monad (void)
-import Configuration.Dotenv ( loadFile, defaultConfig )
-import System.Environment (getEnv, getEnvironment)
-import qualified Data.Text.Encoding as BS
-import qualified Data.Text as Text
 import Polysemy (Embed, Member, Sem)
+import System.Environment (getEnv, getEnvironment)
+import UnliftIO (MonadUnliftIO)
 import qualified Wow.Effects.Env as WE
+import Prelude hiding (filter)
+import Control.Monad (join)
 
 newtype Env = Env
   { manager :: Manager
@@ -49,26 +50,28 @@ instance HasHttpManager Env where
 tokenFromEnv :: (MonadIO m) => m BS.ByteString
 tokenFromEnv = BS.encodeUtf8 . Text.pack <$> liftIO (getEnv "TWITTER_BEARER_TOKEN")
 
-tokenFromEnvPoly :: forall r . (Member WE.Env r) => Sem r BS.ByteString
+tokenFromEnvPoly :: forall r. (Member WE.Env r) => Sem r BS.ByteString
 tokenFromEnvPoly = BS.encodeUtf8 . Text.pack <$> (WE.getEnv "TWITTER_BEARER_TOKEN")
 
-data Rule = Rule {
-  ruleId :: Text
-} deriving (Show)
+data Rule = Rule
+  { ruleId :: Text
+  }
+  deriving (Show)
 
 instance FromJSON Rule where
   parseJSON (Object o) =
     Rule <$> o .: "id"
   parseJSON _ = mzero
 
-data Rules = Rules {
-  rules :: [Rule]
-} deriving (Show)
+data Rules = Rules
+  { rules :: [Rule]
+  }
+  deriving (Show)
 
 instance FromJSON Rules where
   parseJSON o@(Array _) = do
     rules <- parseJSON o
-    pure $ Rules { rules }
+    pure $ Rules {rules}
   parseJSON _ = mzero
 
 data GetRulesResponse = GetRulesResponse Rules deriving (Show)
@@ -92,13 +95,12 @@ getRules = do
     mkReq = do
       initReq <- parseRequest "https://api.twitter.com/2/tweets/search/stream/rules"
       token <- tokenFromEnv
-      let
-        r = initReq
-          { method = "GET",
-            requestHeaders = requestHeaders initReq <> [("Authorization", "Bearer " <> token)]
-          }
+      let r =
+            initReq
+              { method = "GET",
+                requestHeaders = requestHeaders initReq <> [("Authorization", "Bearer " <> token)]
+              }
       pure r
-
 
 type RuleId = Text
 
@@ -113,12 +115,12 @@ deleteRules ids = do
     mkReq = do
       initReq <- parseRequest "https://api.twitter.com/2/tweets/search/stream/rules"
       token <- tokenFromEnv
-      let
-        r = initReq
-          { method = "POST",
-            requestHeaders = requestHeaders initReq <> [("Authorization", "Bearer " <> token), ("Content-type","application/json")],
-            requestBody = RequestBodyLBS $ encode PostRules { delete = Just ids, add = Nothing }
-          }
+      let r =
+            initReq
+              { method = "POST",
+                requestHeaders = requestHeaders initReq <> [("Authorization", "Bearer " <> token), ("Content-type", "application/json")],
+                requestBody = RequestBodyLBS $ encode PostRules {delete = Just ids, add = Nothing}
+              }
       pure r
 
 data RuleDef = RuleDef String deriving (Show)
@@ -126,52 +128,55 @@ data RuleDef = RuleDef String deriving (Show)
 instance ToJSON RuleDef where
   toJSON (RuleDef s) = object [("value", toJSON s)]
 
-data PostRules = PostRules {
-  add :: Maybe [RuleDef],
-  delete :: Maybe [RuleId]
-} deriving (Show)
+data PostRules = PostRules
+  { add :: Maybe [RuleDef],
+    delete :: Maybe [RuleId]
+  }
+  deriving (Show)
 
-data MatchingRule = MatchingRule {
-  matchingRuleId :: RuleId,
-  tag :: Text
-} deriving (Show)
+data MatchingRule = MatchingRule
+  { matchingRuleId :: RuleId,
+    tag :: Text
+  }
+  deriving (Show)
 
 instance FromJSON MatchingRule where
   parseJSON (Object o) = do
     MatchingRule <$> o .: "id" <*> o .: "tag"
   parseJSON _ = mzero
 
-data Tweet = Tweet {
-  tweetId :: Text,
-  text :: Text
-} deriving (Show)
+data Tweet = Tweet
+  { tweetId :: Text,
+    text :: Text
+  }
+  deriving (Show)
 
 instance FromJSON Tweet where
   parseJSON (Object o) = do
     Tweet <$> o .: "id" <*> o .: "text"
   parseJSON _ = mzero
 
-data StreamEntry = StreamEntry {
-  tweet :: Tweet,
-  matchingRules :: [MatchingRule]
-} deriving (Show)
+data StreamEntry = StreamEntry
+  { tweet :: Tweet,
+    matchingRules :: Maybe [MatchingRule]
+  }
+  deriving (Show)
 
 instance FromJSON StreamEntry where
   parseJSON (Object o) = do
-    tweet <- parseJSON =<< (o .: "data")
-    matchingRules <- parseJSON =<< (o .: "matching_rules")
-    pure $ StreamEntry { .. }
+    tweet <- o .: "data"
+    matchingRules <- o .:? "matching_rules"
+    pure $ StreamEntry {..}
   parseJSON _ = mzero
 
 instance ToJSON PostRules where
   toJSON pr = do
-    let
-      adds = case pr.add of
-        Just r -> [("add", toJSON r)]
-        Nothing -> []
-      deletes = case pr.delete of
-        Just ids -> [("delete", object [("ids", toJSON ids)] )]
-        Nothing -> []
+    let adds = case pr.add of
+          Just r -> [("add", toJSON r)]
+          Nothing -> []
+        deletes = case pr.delete of
+          Just ids -> [("delete", object [("ids", toJSON ids)])]
+          Nothing -> []
     object (adds <> deletes)
 
 addRule :: RuleDef -> IO ()
@@ -185,15 +190,15 @@ addRule rule = do
     mkReq = do
       initReq <- parseRequest "https://api.twitter.com/2/tweets/search/stream/rules"
       token <- tokenFromEnv
-      let
-        r = initReq
-          { method = "POST",
-            requestHeaders = requestHeaders initReq <> [("Authorization", "Bearer " <> token), ("Content-type","application/json") ],
-            requestBody = RequestBodyLBS $ encode  (PostRules { add = Just [rule], delete = Nothing})
-          }
+      let r =
+            initReq
+              { method = "POST",
+                requestHeaders = requestHeaders initReq <> [("Authorization", "Bearer " <> token), ("Content-type", "application/json")],
+                requestBody = RequestBodyLBS $ encode (PostRules {add = Just [rule], delete = Nothing})
+              }
       pure r
 
-type NaturalTransformation f g = forall a . f a -> g a
+type NaturalTransformation f g = forall a. f a -> g a
 
 showEnv :: IO ()
 showEnv = do
