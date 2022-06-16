@@ -51,17 +51,10 @@ interpretTwitterStreamByTChan channel = interpretH $ \case
         loop
     liftT loop
 
-
-
-
 filteredStream :: forall r . ( Member Env r, Member HttpLongPolling r) =>(StreamEntry -> Sem r ()) -> Sem r ()
 filteredStream handler' = do
   let
-    handler = handler1 . decodeStrict
-      where
-        handler1 = \case
-          Just x -> handler' x
-          Nothing -> pure ()
+    handler = maybe (pure ()) handler' . decodeStrict
   token <- tokenFromEnvPoly
   let request = Request {
     HLP.url = "https://api.twitter.com/2/tweets/sample/stream",
