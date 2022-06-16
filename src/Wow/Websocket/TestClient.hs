@@ -5,27 +5,14 @@
 module Wow.Websocket.TestClient where
 import Prelude
 
-import Control.Monad.Trans (liftIO)
-import Control.Concurrent (forkIO, Chan, threadDelay)
-import Control.Concurrent.STM (TMVar, tryReadTMVar, readTMVar, tryTakeTMVar, newTMVarIO, newEmptyTMVarIO, putTMVar, atomically, takeTMVar, isEmptyTMVar, STM)
-import Control.Monad (forever, unless)
-
-
-
-import Network.Socket (withSocketsDo, AddrInfoFlag (AI_ADDRCONFIG))
-
+import Control.Concurrent.STM (TMVar, newEmptyTMVarIO, atomically, takeTMVar, isEmptyTMVar, STM)
+import Network.Socket (withSocketsDo)
 import qualified Network.WebSockets as WS
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
 import Data.Text (Text)
-import System.Console.Haskeline as HL
-import Control.Monad.Error (MonadError(throwError))
-import Debug.Trace (traceM, traceShow, traceShowM)
-import Test.Hspec (shouldBe)
-import Control.Exception (Exception (fromException), throw, throwIO, SomeException (SomeException))
-import Control.Concurrent.Async (async, cancel, wait, waitCatch, cancelWith, Async)
+import Debug.Trace (traceShowM)
+import Control.Exception (Exception (fromException), throwIO)
+import Control.Concurrent.Async (async, waitCatch, cancelWith, Async)
 import Data.Maybe (isJust)
-import System.Posix (sleep)
 import GHC.Natural (Natural, naturalToInteger)
 
 data ExpectationError = ExpectationError Text

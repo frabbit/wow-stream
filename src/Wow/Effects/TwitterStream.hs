@@ -4,8 +4,7 @@
 module Wow.Effects.TwitterStream where
 
 import Prelude
-import Polysemy (makeSem, Sem, Member, interpretH, runT, getInitialStateT, bindT, pureT, interpret, bindTSimple, raiseUnder, reinterpret2H, raise, raise_, Members, reinterpretH, subsume, Embed, embed)
-import qualified Polysemy as PS
+import Polysemy (makeSem, Sem, Member, interpretH, getInitialStateT, bindT, reinterpret2H, subsume, Embed)
 import Wow.Twitter.Types (StreamEntry, tokenFromEnvPoly)
 import Wow.Effects.HttpLongPolling (HttpLongPolling, Request (Request))
 import Wow.Effects.Env (Env)
@@ -13,7 +12,6 @@ import qualified Wow.Effects.HttpLongPolling as HLP
 import Data.Aeson (decodeStrict)
 import Control.Monad (void)
 import Polysemy.Internal.Tactics (liftT)
-import Control.Lens (Field14(_14))
 import Control.Concurrent.STM (readTChan, TChan)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.STM (atomically)
