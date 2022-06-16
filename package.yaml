@@ -52,6 +52,7 @@ dependencies:
 - polysemy-conc
 - unix
 - megaparsec
+- haskeline
 
 default-extensions:
   - TypeOperators
