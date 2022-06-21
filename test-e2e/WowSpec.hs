@@ -25,21 +25,19 @@ import Wow.Twitter.Types (StreamEntry(StreamEntry, tweet, matchingRules), Tweet 
 import Wow.Data.Command (Command (CmdGreeting, CmdFilter, CmdListen, CmdUnlisten), toText)
 import Wow.Data.ServerMessage (ServerMessage (SMSimpleText), parseServerMessage)
 
-type SendCommand = Maybe Text -> IO ()
-
-type SendCommand' = Maybe Command -> IO ()
+type SendCommand = Maybe Command -> IO ()
 
 data Timeout = Timeout Text deriving (Show, Eq)
 
 instance Exception Timeout
 
-type OnReceive' = ClientId -> ServerMessage -> IO ()
+type OnReceiveServerMessage = ClientId -> ServerMessage -> IO ()
 
 startTestclientTyped :: ClientId
   -> Natural
-  -> OnReceive'
+  -> OnReceiveServerMessage
   -> IO
-      (SendCommand',
+      (SendCommand,
       Async ())
 startTestclientTyped clientId port onReceive = do
   let
@@ -123,17 +121,17 @@ actionAndWaitWithWaitTime waitTime action messages messagesToWaitFor = do
       action
       wait a
 
-sendAndWaitWithWaitTime :: (Eq a, Show a) => Int -> SendCommand' -> TVar [a] -> Maybe Command -> [a] -> IO ()
+sendAndWaitWithWaitTime :: (Eq a, Show a) => Int -> SendCommand -> TVar [a] -> Maybe Command -> [a] -> IO ()
 sendAndWaitWithWaitTime waitTime send messages msg messagesToWaitFor = do
   actionAndWaitWithWaitTime waitTime action messages messagesToWaitFor
   where
     action = send msg
 
 
-sendAndWait :: (Eq a, Show a) => SendCommand' -> TVar [a] -> Maybe Command -> [a] -> IO ()
+sendAndWait :: (Eq a, Show a) => SendCommand -> TVar [a] -> Maybe Command -> [a] -> IO ()
 sendAndWait = sendAndWaitWithWaitTime 400_000
 
-doLogin :: SendCommand' -> TVar [ServerMessage] -> IO ()
+doLogin :: SendCommand -> TVar [ServerMessage] -> IO ()
 doLogin send msgs = do
   sendAndWait send msgs (Just $ CmdGreeting "Pim") [SMSimpleText "Welcome! Users: Pim"]
 
@@ -201,7 +199,7 @@ spec = describe "WowApp" $ do
       sendAndWait send1 msgs Nothing [("Wim",SMSimpleText "Pim disconnected")]
       sendAndWait send2 msgs Nothing []
 
-withClient :: Natural -> ClientId -> ((SendCommand', TVar [ServerMessage]) -> IO ()) -> IO ()
+withClient :: Natural -> ClientId -> ((SendCommand, TVar [ServerMessage]) -> IO ()) -> IO ()
 withClient port c1 action = do
   msgs <- newTVarIO []
   let
@@ -211,7 +209,7 @@ withClient port c1 action = do
   action (send1, msgs)
   wait fiber1
 
-withClients2 :: Natural -> (ClientId, ClientId) -> ((SendCommand', SendCommand', TVar [(ClientId, ServerMessage)]) -> IO ()) -> IO ()
+withClients2 :: Natural -> (ClientId, ClientId) -> ((SendCommand, SendCommand, TVar [(ClientId, ServerMessage)]) -> IO ()) -> IO ()
 withClients2 port (c1, c2) action = do
   msgs <- newTVarIO []
   let
