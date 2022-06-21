@@ -20,7 +20,7 @@ import Wow.Effects.STM (STM, atomically)
 import Wow.Data.Command (Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
 import Wow.Data.ClientId (ClientId)
 import Wow.Effects.ClientChannel (receiveMessage, ClientChannel, sendMessage, ConnectionNotAvailableError, InvalidCommandError)
-import Wow.Data.ServerMessage (ServerMessage(SMSimpleText))
+import Wow.Data.ServerMessage (ServerMessage(SMSimpleText, SMAcknowledge))
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, liftVExceptT, runVExceptT)
 import Data.Function ((&))
 
@@ -153,15 +153,15 @@ talk c state = forever $ do
           liftVExceptT $ sendMessage c.clientId $ (SMSimpleText $ "All users: " <> T.intercalate ", " (map (.name) s.clients))
           pure ()
     CmdListen -> do
-          liftVExceptT $ sendMessage c.clientId (SMSimpleText "listen acknowledged.")
+          liftVExceptT $ sendMessage c.clientId (SMAcknowledge "listen")
           lift $ atomically $ modifyTVar state $ setClientListening c True
           pure ()
     CmdFilter f -> do
-          liftVExceptT $ sendMessage c.clientId (SMSimpleText "filter acknowledged.")
+          liftVExceptT $ sendMessage c.clientId (SMAcknowledge "filter")
           lift $ atomically $ modifyTVar state $ setClientFilter c (Just f)
           pure ()
     CmdUnlisten -> do
-          liftVExceptT $ sendMessage c.clientId (SMSimpleText "unlisten acknowledged.")
+          liftVExceptT $ sendMessage c.clientId (SMAcknowledge "unlisten")
           lift $ atomically $ modifyTVar state $ setClientListening c False
           pure ()
     CmdTalk msg ->

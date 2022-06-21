@@ -23,7 +23,7 @@ import Wow.WowApp (defaultAppConfig, AppConfig, TwitterStreamSource (TSSFakeChan
 import Wow.Twitter.Types (StreamEntry(StreamEntry, tweet, matchingRules), Tweet (Tweet, text, tweetId))
 
 import Wow.Data.Command (Command (CmdGreeting, CmdFilter, CmdListen, CmdUnlisten), toText)
-import Wow.Data.ServerMessage (ServerMessage (SMSimpleText), parseServerMessage)
+import Wow.Data.ServerMessage (ServerMessage (SMSimpleText, SMAcknowledge), parseServerMessage)
 
 type SendCommand = Maybe Command -> IO ()
 
@@ -144,25 +144,25 @@ spec = describe "WowApp" $ do
   it "should acknowledge filter command" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just $ CmdFilter "xyz") [SMSimpleText "filter acknowledged."]
+      sendAndWait send msgs (Just $ CmdFilter "xyz") [SMAcknowledge "filter"]
       sendAndWait send msgs Nothing []
   it "should acknowledge listen command" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just CmdListen) [SMSimpleText "listen acknowledged."]
+      sendAndWait send msgs (Just CmdListen) [SMAcknowledge "listen"]
       sendAndWait send msgs Nothing []
   it "should receive listen events" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just CmdListen) [SMSimpleText "listen acknowledged."]
+      sendAndWait send msgs (Just CmdListen) [SMAcknowledge "listen"]
       let action = sendStreamEntryAction cfg (StreamEntry{tweet = Tweet { text = "This is a tweet", tweetId = "1" }, matchingRules = Nothing})
       actionAndWait action msgs [SMSimpleText "This is a tweet"]
       sendAndWait send msgs Nothing []
   it "should filter events that don't match the given filter" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just CmdListen) [SMSimpleText "listen acknowledged."]
-      sendAndWait send msgs (Just $ CmdFilter "abc") [SMSimpleText "filter acknowledged."]
+      sendAndWait send msgs (Just CmdListen) [SMAcknowledge "listen"]
+      sendAndWait send msgs (Just $ CmdFilter "abc") [SMAcknowledge "filter"]
       let action1 = sendStreamEntryAction cfg (StreamEntry{tweet = Tweet { text = "This is a tweet", tweetId = "1" }, matchingRules = Nothing})
       actionAndWait action1 msgs []
       expectNoMessagesFor 400_000 msgs
@@ -170,8 +170,8 @@ spec = describe "WowApp" $ do
   it "should filter events that don't match the given filter" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just CmdListen) [SMSimpleText "listen acknowledged."]
-      sendAndWait send msgs (Just $ CmdFilter "abc") [SMSimpleText "filter acknowledged."]
+      sendAndWait send msgs (Just CmdListen) [SMAcknowledge "listen"]
+      sendAndWait send msgs (Just $ CmdFilter "abc") [SMAcknowledge "filter"]
       let action1 = sendStreamEntryAction cfg (StreamEntry{tweet = Tweet { text = "This is a tweet", tweetId = "1" }, matchingRules = Nothing})
       actionAndWait action1 msgs []
       (`shouldBe` []) <$> readTVarIO msgs
@@ -182,8 +182,8 @@ spec = describe "WowApp" $ do
   it "should acknowledge unlisten command" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just CmdListen) [SMSimpleText "listen acknowledged."]
-      sendAndWait send msgs (Just CmdUnlisten) [SMSimpleText "unlisten acknowledged."]
+      sendAndWait send msgs (Just CmdListen) [SMAcknowledge "listen"]
+      sendAndWait send msgs (Just CmdUnlisten) [SMAcknowledge "unlisten"]
       sendAndWait send msgs Nothing []
   it "should allow Clients to login" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
