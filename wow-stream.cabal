@@ -24,16 +24,26 @@ source-repository head
 
 library
   exposed-modules:
+      Veins.Control.Monad.VExceptT
+      Veins.Data.Variant
+      Veins.Data.Variant.EitherUtil
+      Veins.Data.VEither
+      Veins.Prelude
+      Wow.Data.ClientId
       Wow.Data.Command
+      Wow.Data.ServerMessage
+      Wow.Effects.ClientChannel
       Wow.Effects.DotEnv
       Wow.Effects.Env
       Wow.Effects.Errors
       Wow.Effects.Finally
       Wow.Effects.HttpLongPolling
+      Wow.Effects.Server
       Wow.Effects.STM
       Wow.Effects.TwitterStream
       Wow.Effects.WebSocket
       Wow.Options
+      Wow.Prelude
       Wow.Twitter.FilteredStream
       Wow.Twitter.Types
       Wow.Websocket
@@ -81,6 +91,7 @@ library
     , bytestring
     , case-insensitive
     , conduit
+    , containers
     , dotenv
     , exceptions
     , extra
@@ -107,6 +118,7 @@ library
     , transformers
     , unix
     , unliftio
+    , uuid
     , websockets
   default-language: Haskell2010
 
@@ -153,6 +165,7 @@ executable wow-stream-exe
     , bytestring
     , case-insensitive
     , conduit
+    , containers
     , dotenv
     , exceptions
     , extra
@@ -179,6 +192,7 @@ executable wow-stream-exe
     , transformers
     , unix
     , unliftio
+    , uuid
     , websockets
     , wow-stream
   default-language: Haskell2010
@@ -187,24 +201,38 @@ test-suite wow-stream-test-all
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      Veins.Control.Monad.VExceptT
+      Veins.Data.Variant
+      Veins.Data.Variant.EitherUtil
+      Veins.Data.VEither
+      Veins.Prelude
+      Wow.Data.ClientId
       Wow.Data.Command
+      Wow.Data.ServerMessage
+      Wow.Effects.ClientChannel
       Wow.Effects.DotEnv
       Wow.Effects.Env
       Wow.Effects.Errors
       Wow.Effects.Finally
       Wow.Effects.HttpLongPolling
+      Wow.Effects.Server
       Wow.Effects.STM
       Wow.Effects.TwitterStream
       Wow.Effects.WebSocket
       Wow.Options
+      Wow.Prelude
       Wow.Twitter.FilteredStream
       Wow.Twitter.Types
       Wow.Websocket
       Wow.Websocket.Client
       Wow.Websocket.TestClient
       Wow.WowApp
+      Veins.TestPrelude
       Wow.TestPrelude
       UnitSpec
+      Veins.Control.Monad.VExceptTSpec
+      Veins.Data.Variant.EitherUtilsSpec
+      Veins.Data.VariantSpec
       Wow.Data.CommandSpec
       E2ESpec
       WowSpec
@@ -252,6 +280,7 @@ test-suite wow-stream-test-all
     , bytestring
     , case-insensitive
     , conduit
+    , containers
     , dotenv
     , exceptions
     , extra
@@ -280,5 +309,6 @@ test-suite wow-stream-test-all
     , transformers
     , unix
     , unliftio
+    , uuid
     , websockets
   default-language: Haskell2010

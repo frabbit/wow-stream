@@ -3,6 +3,7 @@
 {-# HLINT ignore "Use readTVarIO" #-}
 {-# HLINT ignore "Use newTVarIO" #-}
 {-# HLINT ignore "Use newtype instead of data" #-}
+{-# HLINT ignore "Move brackets to avoid $" #-}
 module Wow.WowApp where
 
 
@@ -10,11 +11,11 @@ import Debug.Trace (traceShowM)
 import qualified Data.Text as T
 import Prelude
 import qualified Wow.Effects.WebSocket as WSE
-import Wow.Websocket (newServerState, broadcastSilentWhen, ServerState, webSocketApp)
+import Wow.Websocket (newServerState, broadcastSilentWhen, ServerState, handleClient)
 import GHC.Conc (TVar, readTVar)
 import Wow.Twitter.Types (StreamEntry)
 
-import Polysemy (Sem, Member, Embed, embedToFinal, runFinal, Final, raise_, subsume)
+import Polysemy (Sem, Member, Embed, embedToFinal, runFinal, Final, raise_, subsume, Members, raise)
 import Wow.Effects.HttpLongPolling (HttpLongPolling, httpLongPollingToIO)
 import Wow.Effects.Env (Env, envToIo)
 import Polysemy.Async (Async, asyncToIOFinal, sequenceConcurrently)
@@ -29,8 +30,15 @@ import GHC.Conc.Sync (newTVar)
 import GHC.Natural (Natural, naturalToInteger)
 import Wow.Effects.TwitterStream (TwitterStream, tSSampleStream, interpretTwitterStream, interpretTwitterStreamByTChan)
 import Control.Concurrent.STM (TChan)
+import qualified Wow.Effects.Server as S
+import Wow.Effects.ClientChannel (ClientChannel, interpretClientChannel)
+import Wow.Effects.Server (Server, interpretServer, ClientLookup)
+import Polysemy.AtomicState (atomicStateToIO, AtomicState, runAtomicStateTVar)
+import qualified Data.Map.Strict as Map
+import Control.Concurrent.STM (newTVarIO)
+import Polysemy.Input (Input, runInputSem)
 
-filteredStreamBroadcast :: forall r . (Member STM r, Member WebSocket r, Member TwitterStream r) => TVar ServerState -> Sem r ()
+filteredStreamBroadcast :: forall r . (Members [ClientChannel, STM] r, Member WebSocket r, Member TwitterStream r) => TVar ServerState -> Sem r ()
 filteredStreamBroadcast var = tSSampleStream broadcastC
   where
   broadcastC :: _ => StreamEntry -> Sem r ()
@@ -60,41 +68,51 @@ defaultAppConfig = AppConfig {
   port = 8131
 }
 
-type AppContraints r = (DotEnv ': STM ': TwitterStream ': WebSocket ': Finally ': HttpLongPolling ': Env ': Interrupt ': Critical ':  Race ': Async ': Embed IO ': Final IO ': '[])
+type AppContraints r = (DotEnv ': STM ': Server ': ClientChannel ': TwitterStream ': WebSocket ': Finally ': HttpLongPolling ': Env ': Input ClientLookup ': AtomicState ClientLookup ':Interrupt ': Critical ':  Race ': Async ': Embed IO ': Final IO ': '[])
 
 appToIo :: AppConfig -> Sem (AppContraints r) a -> IO a
-appToIo cfg app' = app'
-    & dotEnvToIo
-    & stmToIo
-    & case cfg.twitterStreamSource of
-      TSSLive -> subsume . subsume . interpretTwitterStream
-      TSSFakeChannel channel -> interpretTwitterStreamByTChan channel
-    & webSocketToIO (appToIo cfg . raise_)
-    & finallyToIo (appToIo cfg . raise_)
-    & httpLongPollingToIO (appToIo cfg . raise_)
-    & envToIo
-    & interpretInterruptOnce
-    & interpretCritical
-    & interpretRace
-    & asyncToIOFinal
-    & embedToFinal
-    & runFinal
+appToIo cfg app' = do
+  clientLookup <- newTVarIO Map.empty
+  let
+      go :: Sem (AppContraints r) a -> IO a
+      go a = a
+        & dotEnvToIo
+        & stmToIo
+        & interpretServer cfg.port
+        & subsume
+        & interpretClientChannel
+        & subsume
+        & case cfg.twitterStreamSource of
+          TSSLive -> subsume . subsume . interpretTwitterStream
+          TSSFakeChannel channel -> interpretTwitterStreamByTChan channel
+        & webSocketToIO (go . raise_)
+        & finallyToIo (go . raise_)
+        & httpLongPollingToIO (go . raise_)
+        & envToIo
+        & runInputSem ((atomically $ readTVar clientLookup)  & stmToIo)
+        & runAtomicStateTVar clientLookup
+        & interpretInterruptOnce
+        & interpretCritical
+        & interpretRace
+        & asyncToIOFinal
+        & embedToFinal
+        & runFinal
+  go app'
+
 
 
 main :: AppConfig -> IO ()
 main cfg= do
   app cfg & appToIo cfg
 
-app :: (  Member TwitterStream r, Member DotEnv r, Member STM r, Member Finally r, Member WebSocket r, Member Async r, Member Interrupt r) => AppConfig -> Sem r ()
+app :: (  Members [ Server, ClientChannel, TwitterStream, DotEnv, STM , Finally, WebSocket, Async, Interrupt] r) => AppConfig -> Sem r ()
 app cfg = do
   loadDotEnv
   state <- atomically $ newTVar newServerState
   sequenceConcurrently
     [
       killOnQuit "kill stream handler" $ filteredStreamBroadcast state,
-      killOnQuit "kill websocket server" $ WSE.runServer "127.0.0.1" (fromInteger $ naturalToInteger cfg.port) $ webSocketApp state
+      killOnQuit "kill websocket server" $ S.start $ handleClient state
     ]
   unregister "kill stream handler"
   unregister "kill websocket server"
-
-

@@ -17,7 +17,6 @@ import Polysemy (Sem, Member)
 import Wow.Effects.HttpLongPolling (HttpLongPolling, Request (Request), url, headers)
 import Wow.Effects.Env (Env)
 import qualified Wow.Effects.HttpLongPolling as HLP
-import Debug.Trace (traceShowM)
 
 newtype MyIO a = MyIO {unMyIO :: IO a} deriving (Monad, Functor, MonadIO, Applicative, MonadUnliftIO)
 

@@ -6,7 +6,7 @@ module WowSpec (spec, withApp) where
 
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, wait, uninterruptibleCancel, race)
-import Control.Concurrent.STM (TVar, atomically, modifyTVar, newTVarIO, putTMVar, readTVar, TMVar, newTChan, newTChanIO, writeTChan, readTVarIO)
+import Control.Concurrent.STM (TVar, atomically, modifyTVar, newTVarIO, putTMVar, readTVar, TMVar, newTChanIO, writeTChan, readTVarIO)
 import Control.Exception (bracket, Exception, throw)
 import Data.Text (Text)
 import Test.Hspec (Spec, describe, it, shouldBe)
@@ -53,7 +53,11 @@ withApp action = do
         pure (a, config)
     )
     (uninterruptibleCancel . fst)
-    (\(_,config) -> do action config)
+    (\(_,config) -> do
+      x <- action config
+      threadDelay 50_000
+      pure x
+    )
 
 expectNoMessagesFor :: (Eq a, Show a) => Int -> TVar [a] -> IO ()
 expectNoMessagesFor waitTime messages = go waitTime

@@ -8,16 +8,18 @@ import Prelude
 
 import qualified Network.WebSockets as WS
 import Polysemy (makeSem, Member, Embed, Sem, interpretH, runT, embed, bindT, getInitialStateT, pureT)
-import Data.Functor (($>))
+import Data.Functor (($>), (<&>))
 import Control.Monad (void)
 import Data.Text (Text)
 import Debug.Trace (traceShowM)
 import Control.Monad.IO.Class (liftIO)
+import Network.WebSockets (ConnectionException)
+import Control.Exception (catch, throw)
 
 data WebSocket m a where
   WithPingThread :: WS.Connection -> Int -> m () -> m a -> WebSocket m a
   RunServer :: String -> Int -> (WS.PendingConnection -> m ()) -> WebSocket m ()
-  ReceiveData :: (WS.WebSocketsData a) => WS.Connection -> WebSocket m a
+  ReceiveData :: (WS.WebSocketsData a) => WS.Connection -> WebSocket m (Either ConnectionException a)
   SendTextData :: WS.Connection -> Text -> WebSocket m ()
   AcceptRequest :: WS.PendingConnection -> WebSocket m WS.Connection
 
@@ -48,7 +50,10 @@ webSocketToIO nt = interpretH $ \case
 
     pureT x
   ReceiveData conn -> do
-    pureT =<< (embed $ WS.receiveData conn)
+    pureT =<< (embed $
+      (WS.receiveData conn <&> Right) `catch` \(e::ConnectionException) -> do
+        pure $ Left e
+      )
   SendTextData conn txt -> do
     pureT =<< (embed $ WS.sendTextData conn txt)
   AcceptRequest pendingConn -> do

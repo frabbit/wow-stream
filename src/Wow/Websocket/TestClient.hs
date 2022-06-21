@@ -12,8 +12,8 @@ import Data.Text (Text)
 import Debug.Trace (traceShowM)
 import Control.Exception (Exception (fromException), throwIO)
 import Control.Concurrent.Async (async, waitCatch, cancelWith, Async)
-import Data.Maybe (isJust)
 import GHC.Natural (Natural, naturalToInteger)
+import Network.WebSockets (ConnectionException (CloseRequest))
 
 data ExpectationError = ExpectationError Text
   deriving (Show, Eq)
@@ -73,6 +73,7 @@ testClient ClientConfig { send, onReceive, clientId } conn = do
         cmd <- atomically $ takeTMVar send
         case cmd of
           Nothing -> do
+            --WS.sendClose conn ("Bye\n"::Text)
             cancelWith fiber Stopped
             pure ()
           Just cmd' -> WS.sendTextData conn cmd' >> loop
@@ -81,12 +82,16 @@ testClient ClientConfig { send, onReceive, clientId } conn = do
   case x of
     Left e -> do
       let (x1::Maybe Stopped) = fromException e
-      if isJust x1 then do
-        pure ()
-      else do
-        traceShowM e
-        throwIO e
+      let (x2::Maybe ConnectionException) = fromException e
+      case (x1, x2) of
+        (Just _, _) -> pure ()
+        (_, Just CloseRequest {}) -> pure ()
+        _ -> do
+          traceShowM e
+          throwIO e
 
     Right _ -> pure ()
+  traceShowM "done"
+
 
 

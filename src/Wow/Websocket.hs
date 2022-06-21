@@ -11,18 +11,22 @@ import qualified Data.Text as T
 import GHC.Conc (readTVar, TVar)
 import UnliftIO (modifyTVar, MonadUnliftIO, toIO)
 import Control.Monad (forM_)
-import Control.Monad.Cont (forever)
+import Control.Monad.Cont (forever, MonadTrans (lift))
 import Debug.Trace (traceShowM)
 import Control.Monad.IO.Class (MonadIO (liftIO))
-import Polysemy (Sem, Member)
-import Wow.Effects.WebSocket (WebSocket, withPingThread, receiveData, sendTextData, acceptRequest)
+import Polysemy (Sem, Member, Members)
 import Wow.Effects.Finally (finally, Finally)
 import Wow.Effects.STM (STM, atomically)
-import Wow.Data.Command (parseCommand, Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
+import Wow.Data.Command (Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
+import Wow.Data.ClientId (ClientId)
+import Wow.Effects.ClientChannel (receiveMessage, ClientChannel, sendMessage, ConnectionNotAvailableError, InvalidCommandError)
+import Wow.Data.ServerMessage (ServerMessage(SMSimpleText))
+import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, liftVExceptT, runVExceptT)
+import Data.Function ((&))
 
 data Client = Client {
   name :: Text,
-  conn:: WS.Connection,
+  clientId:: ClientId,
   listening :: Bool,
   tweetFilter :: Maybe Text
   }
@@ -69,17 +73,19 @@ setClientListening c listening = updateClientByName c $ \cl -> cl{listening}
 setClientFilter :: Client -> Maybe Text -> ServerState -> ServerState
 setClientFilter c tweetFilter = updateClientByName c $ \cl -> cl{tweetFilter}
 
-broadcastSilent :: (Member WebSocket r) => Text -> ServerState -> Sem r ()
+broadcastSilent :: (Members '[ClientChannel] r) => Text -> ServerState -> VExceptT _ (Sem r) ()
 broadcastSilent message s = do
-  forM_ s.clients $ \c -> sendTextData c.conn message
+  forM_ s.clients $ \c -> sendMessage c.clientId (SMSimpleText message)
 
-broadcastSilentWhen :: (Member WebSocket r) => (Client -> Bool) -> Text -> ServerState -> Sem r ()
+broadcastSilentWhen :: (Members '[ClientChannel] r) => (Client -> Bool) -> Text -> ServerState -> Sem r ()
 broadcastSilentWhen f message s = do
   forM_ s.clients sendIf
   where
-    sendIf c = if f c then sendTextData c.conn message else pure ()
+    sendIf c = if f c
+      then sendMessage c.clientId (SMSimpleText message) `catchVExceptT` (\(_::ConnectionNotAvailableError) -> pure ()) & evalVExceptT
+      else pure ()
 
-broadcast :: (Member WebSocket r) => Text -> ServerState -> Sem r ()
+broadcast :: (_) => Text -> ServerState -> VExceptT _ (Sem r) ()
 broadcast message s = do
   traceShowM message
   broadcastSilent message s
@@ -90,72 +96,77 @@ withPingThreadUnliftIO conn interval pingAction appAction = do
   appAction' <- toIO appAction
   liftIO $ WS.withPingThread conn interval pingAction' appAction'
 
-webSocketApp :: forall r. (Member STM r, Member Finally r, Member WebSocket r) => TVar ServerState -> WS.PendingConnection -> Sem r ()
-webSocketApp state pending = do
-  traceShowM ("incoming connection"::Text)
-  traceShowM (WS.pendingRequest pending)
-  conn <- acceptRequest pending
-  traceShowM ("after accept"::Text)
+handleClient :: forall r. (Member ClientChannel r, Member STM r, Member Finally r) => TVar ServerState -> ClientId -> (Sem r) ()
+handleClient state clientId = evalVExceptT $ do
+  msg <- receiveMessage clientId
+  case msg of
+    CmdGreeting n -> liftVExceptT $ greeting n clientId state
+    _ -> liftVExceptT $ sendMessage clientId (SMSimpleText "Unexpected command")
+  `catchVExceptT` (\(_::ConnectionNotAvailableError) -> do
+    traceShowM "Conn not available"
+    pure ())
+  `catchVExceptT` (\(_::InvalidCommandError) -> do
+    traceShowM "Invalid Command"
+    pure ())
 
-  withPingThread conn 30 (pure ()) $ do
-    msg <- receiveData conn
-    case parseCommand msg of
-      Left e -> do
-          traceShowM e
-          sendTextData conn ("Wrong announcement" :: Text)
-      Right (CmdGreeting n) -> flip finally disconnect $ do
-        res <- atomically $ do
-          s' <- readTVar state
-          if nameExists n s' then
-            pure Nothing
-          else do
-            modifyTVar state $ addClient client
-            s <- readTVar state
-            pure $ Just (s', s)
-        case res of
-          Nothing -> sendTextData conn ("User already exists" :: Text)
-          Just (s', s) -> do
-            sendTextData conn $
-              "Welcome! Users: " <>
-              T.intercalate ", " (map (.name) s.clients)
-            broadcast (client.name <> " joined") s'
-            talk client state
-        where
-          client = Client { name = n, conn, listening = False, tweetFilter = Nothing }
-          disconnect = do
-            traceShowM ("disconnect"::Text)
-            s <- atomically $ do
-              modifyTVar state $ \s -> removeClient client s
-              readTVar state
-            traceShowM ("disconnect broadcast..."::Text)
-            traceShowM s
-            broadcast (client.name <> " disconnected") s
-      Right _ ->
-        sendTextData conn ("Unexpected command" :: Text)
 
-talk :: (Member STM r, Member WebSocket r) => Client -> TVar ServerState -> Sem r ()
+greeting :: forall r . (Members '[Finally, STM, ClientChannel] r) => _ -> _ -> _ -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+greeting n clientId state = VExceptT $ flip finally (evalVExceptT $ disconnect state client) $ runVExceptT handleGreeting
+  where
+    handleGreeting :: VExceptT _ (Sem r) ()
+    handleGreeting = do
+      res <- lift $ atomically $ do
+        s' <- readTVar state
+        if nameExists n s' then
+          pure Nothing
+        else do
+          modifyTVar state $ addClient client
+          s <- readTVar state
+          pure $ Just (s', s)
+      case res of
+        Nothing -> sendMessage clientId (SMSimpleText "User already exists")
+        Just (s', s) -> do
+          sendMessage clientId (SMSimpleText $ "Welcome! Users: " <> T.intercalate ", " (map (.name) s.clients))
+          broadcast (client.name <> " joined") s'
+          talk client state
+    client = Client { name = n, clientId, listening = False, tweetFilter = Nothing }
+
+disconnect :: (Members '[ClientChannel, STM] r) => _ -> _ -> VExceptT '[] (Sem r) ()
+disconnect state client = do
+  traceShowM ("disconnect"::Text)
+  s <- lift $ atomically $ do
+    modifyTVar state $ \s -> removeClient client s
+    readTVar state
+  traceShowM ("disconnect broadcast..."::Text)
+  traceShowM s
+  broadcast (client.name <> " disconnected") s
+  `catchVExceptT` (\(_::ConnectionNotAvailableError) -> do
+    traceShowM "Conn not available"
+    pure ())
+
+talk :: (Members [ClientChannel, STM] r) => Client -> TVar ServerState -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 talk c state = forever $ do
-  msg <- receiveData c.conn
-  case parseCommand msg of
-    Right CmdClients -> do
-          s <- atomically $ readTVar state
-          sendTextData c.conn $ "All users: " <> T.intercalate ", " (map (.name) s.clients)
+  cmd <- receiveMessage c.clientId
+  case cmd of
+    CmdClients -> do
+          s <- lift $ atomically $ readTVar state
+          liftVExceptT $ sendMessage c.clientId $ (SMSimpleText $ "All users: " <> T.intercalate ", " (map (.name) s.clients))
           pure ()
-    Right CmdListen -> do
-          sendTextData c.conn ("listen acknowledged."::Text)
-          atomically $ modifyTVar state $ setClientListening c True
+    CmdListen -> do
+          liftVExceptT $ sendMessage c.clientId (SMSimpleText "listen acknowledged.")
+          lift $ atomically $ modifyTVar state $ setClientListening c True
           pure ()
-    Right (CmdFilter f) -> do
-          sendTextData c.conn ("filter acknowledged."::Text)
-          atomically $ modifyTVar state $ setClientFilter c (Just f)
+    CmdFilter f -> do
+          liftVExceptT $ sendMessage c.clientId (SMSimpleText "filter acknowledged.")
+          lift $ atomically $ modifyTVar state $ setClientFilter c (Just f)
           pure ()
-    Right CmdUnlisten -> do
-          sendTextData c.conn ("unlisten acknowledged."::Text)
-          atomically $ modifyTVar state $ setClientListening c False
+    CmdUnlisten -> do
+          liftVExceptT $ sendMessage c.clientId (SMSimpleText "unlisten acknowledged.")
+          lift $ atomically $ modifyTVar state $ setClientListening c False
           pure ()
-    Right (CmdTalk msg) ->
-          (atomically $ readTVar state) >>= broadcast (c.name `mappend` ": " `mappend` msg)
-    Right (CmdGreeting _) ->
-          sendTextData c.conn ("Greeting already succeeded" :: Text)
-    Left _ ->
-          sendTextData c.conn ("Unexpected command" :: Text)
+    CmdTalk msg ->
+          (lift $ atomically $ readTVar state) >>= (liftVExceptT . broadcast (c.name `mappend` ": " `mappend` msg))
+    CmdGreeting _ ->
+          liftVExceptT $ sendMessage c.clientId (SMSimpleText "Greeting already succeeded")
+
+  `catchVExceptT` (\(_::InvalidCommandError) -> sendMessage c.clientId (SMSimpleText "Unexpected command"))

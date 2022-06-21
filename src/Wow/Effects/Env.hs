@@ -2,7 +2,6 @@ module Wow.Effects.Env where
 
 import Prelude
 
-import Data.Text (Text)
 import Polysemy (makeSem, Member, Embed, Sem, interpret, embed)
 import Data.Kind (Type)
 import qualified System.Environment as E
