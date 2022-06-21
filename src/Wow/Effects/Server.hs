@@ -38,5 +38,3 @@ interpretServer port = reinterpretH $ \case
         clientId <- embed newClientId
         atomicModify' (M.insert clientId conn)
         void $ subsume . (interpretServer port) $ cb (clientId <$ is)
-        traceShowM "aha"
-      traceShowM "connection lost"
