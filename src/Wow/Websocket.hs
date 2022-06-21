@@ -20,7 +20,7 @@ import Wow.Effects.STM (STM, atomically)
 import Wow.Data.Command (Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
 import Wow.Data.ClientId (ClientId)
 import Wow.Effects.ClientChannel (receiveMessage, ClientChannel, sendMessage, ConnectionNotAvailableError, InvalidCommandError)
-import Wow.Data.ServerMessage (ServerMessage(SMSimpleText, SMAcknowledge))
+import Wow.Data.ServerMessage (ServerMessage(SMSimpleText, SMAcknowledge, SMClientDisconnected))
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, liftVExceptT, runVExceptT)
 import Data.Function ((&))
 
@@ -73,9 +73,9 @@ setClientListening c listening = updateClientByName c $ \cl -> cl{listening}
 setClientFilter :: Client -> Maybe Text -> ServerState -> ServerState
 setClientFilter c tweetFilter = updateClientByName c $ \cl -> cl{tweetFilter}
 
-broadcastSilent :: (Members '[ClientChannel] r) => Text -> ServerState -> VExceptT _ (Sem r) ()
+broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> VExceptT _ (Sem r) ()
 broadcastSilent message s = do
-  forM_ s.clients $ \c -> sendMessage c.clientId (SMSimpleText message)
+  forM_ s.clients $ \c -> sendMessage c.clientId message
 
 broadcastSilentWhen :: (Members '[ClientChannel] r) => (Client -> Bool) -> Text -> ServerState -> Sem r ()
 broadcastSilentWhen f message s = do
@@ -85,7 +85,7 @@ broadcastSilentWhen f message s = do
       then sendMessage c.clientId (SMSimpleText message) `catchVExceptT` (\(_::ConnectionNotAvailableError) -> pure ()) & evalVExceptT
       else pure ()
 
-broadcast :: (_) => Text -> ServerState -> VExceptT _ (Sem r) ()
+broadcast :: (_) => ServerMessage -> ServerState -> VExceptT _ (Sem r) ()
 broadcast message s = do
   traceShowM message
   broadcastSilent message s
@@ -127,7 +127,7 @@ greeting n clientId state = VExceptT $ flip finally (evalVExceptT $ disconnect s
         Nothing -> sendMessage clientId (SMSimpleText "User already exists")
         Just (s', s) -> do
           sendMessage clientId (SMSimpleText $ "Welcome! Users: " <> T.intercalate ", " (map (.name) s.clients))
-          broadcast (client.name <> " joined") s'
+          broadcast (SMSimpleText $ client.name <> " joined") s'
           talk client state
     client = Client { name = n, clientId, listening = False, tweetFilter = Nothing }
 
@@ -139,7 +139,7 @@ disconnect state client = do
     readTVar state
   traceShowM ("disconnect broadcast..."::Text)
   traceShowM s
-  broadcast (client.name <> " disconnected") s
+  broadcast (SMClientDisconnected $ client.name) s
   `catchVExceptT` (\(_::ConnectionNotAvailableError) -> do
     traceShowM "Conn not available"
     pure ())
@@ -165,7 +165,7 @@ talk c state = forever $ do
           lift $ atomically $ modifyTVar state $ setClientListening c False
           pure ()
     CmdTalk msg ->
-          (lift $ atomically $ readTVar state) >>= (liftVExceptT . broadcast (c.name `mappend` ": " `mappend` msg))
+          (lift $ atomically $ readTVar state) >>= (liftVExceptT . broadcast (SMSimpleText $ c.name `mappend` ": " `mappend` msg))
     CmdGreeting _ ->
           liftVExceptT $ sendMessage c.clientId (SMSimpleText "Greeting already succeeded")
 
