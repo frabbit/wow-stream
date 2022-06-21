@@ -9,7 +9,7 @@ data B = B deriving (Show, Eq)
 data C = C deriving (Show, Eq)
 
 spec :: Spec
-spec = fdescribe "VExceptT" $ do
+spec = describe "VExceptT" $ do
   describe "catchVExceptT should" $ do
     it "catch single errors" $ do
       let
