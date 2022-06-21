@@ -30,3 +30,11 @@ test-e2e-ghcid:
 			$(ghci-options) $(ghci-disabled-warnings) \
 		wow-stream:wow-stream-test-all"
 	reset && clear
+
+test-compile-ghcid:
+	reset && clear
+	ghcid --restart=wow-stream.cabal --reload=.reload-ghcid \
+		--command="stack ghci \
+		$(ghci-options) \
+		wow-stream:wow-stream-test-all"
+	reset && clear
