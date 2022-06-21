@@ -22,8 +22,8 @@ import GHC.Num (integerToNatural)
 import Wow.WowApp (defaultAppConfig, AppConfig, TwitterStreamSource (TSSFakeChannel))
 import Wow.Twitter.Types (StreamEntry(StreamEntry, tweet, matchingRules), Tweet (Tweet, text, tweetId))
 
-import Wow.Data.Command (Command (CmdGreeting, CmdFilter, CmdListen, CmdUnlisten), toText)
-import Wow.Data.ServerMessage (ServerMessage (SMSimpleText, SMAcknowledge, SMClientDisconnected), parseServerMessage)
+import Wow.Data.Command (Command (CmdGreeting, CmdFilter, CmdListen, CmdUnlisten, CmdClients), toText)
+import Wow.Data.ServerMessage (ServerMessage (SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients), parseServerMessage)
 
 type SendCommand = Maybe Command -> IO ()
 
@@ -150,6 +150,11 @@ spec = describe "WowApp" $ do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
       sendAndWait send msgs (Just CmdListen) [SMAcknowledge "listen"]
+      sendAndWait send msgs Nothing []
+  it "should list all clients" . withApp $ \cfg -> do
+    withClient cfg.port "Pim" $ \(send, msgs) -> do
+      doLogin send msgs
+      sendAndWait send msgs (Just CmdClients) [SMClients ["Pim"]]
       sendAndWait send msgs Nothing []
   it "should receive listen events" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do

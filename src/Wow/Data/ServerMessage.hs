@@ -5,13 +5,15 @@ module Wow.Data.ServerMessage where
 
 import Prelude
 import Data.Text (Text)
-import Text.Megaparsec (ParseErrorBundle, Parsec, many, noneOf, parse, chunk, some, oneOf, choice, try, MonadParsec (eof))
+import Text.Megaparsec (ParseErrorBundle, Parsec, many, noneOf, parse, chunk, some, oneOf, choice, try, MonadParsec (eof), optional)
 import Data.Void (Void)
 import qualified Data.Text as Text
 import Text.Megaparsec.Char (char)
-import Test.QuickCheck (Arbitrary, oneof, elements)
+import Test.QuickCheck (Arbitrary, oneof, elements, choose, vectorOf)
 import Test.QuickCheck.Arbitrary (arbitrary)
 import Data.Data (Typeable, Data)
+import qualified Data.Text as T
+import Debug.Trace (traceShowM)
 
 type Custom = Void
 
@@ -38,6 +40,7 @@ data ServerMessage
   | SMUnexpectedCommand Text
   | SMClientDisconnected Text
   | SMSimpleText Text
+  | SMClients [Text]
   deriving (Show, Eq, Typeable, Data)
 
 instance Arbitrary ServerMessage where
@@ -47,7 +50,10 @@ instance Arbitrary ServerMessage where
       SMError <$> arbitrary,
       SMUnexpectedCommand <$> elements ["A", "B"],
       SMClientDisconnected <$> elements ["A", "B"],
-      SMSimpleText <$> elements ["a", "b"]
+      SMSimpleText <$> elements ["a", "b"],
+      SMClients <$> do
+        k <- choose (0,4)
+        vectorOf k $ elements ["Pim", "Wim", "Jim", "Tim", "Jill", "Sarah"]
       ]
 
 
@@ -60,6 +66,7 @@ toText :: ServerMessage -> Text
 toText = \case
   SMAcknowledge n -> ":acknowledge " <> n
   SMError e -> ":error " <> errorToText e
+  SMClients cl -> ":clients " <> T.intercalate "," cl
   SMUnexpectedCommand cmd -> ":unexpectedCommand " <> cmd
   SMClientDisconnected client -> ":clientDisconnected " <> client
   SMSimpleText t -> t
@@ -106,6 +113,27 @@ clientDisconnectedParser = do
   name <- many (noneOf ['\n'])
   pure $ SMClientDisconnected $ Text.pack name
 
+nameListParser :: Parser [String]
+nameListParser = go []
+  where
+  go :: [String] -> Parser [String]
+  go v = do
+    name <- optional $ some (noneOf ['\n', ','])
+    case name of
+      Nothing -> pure $ reverse v
+      Just n -> choice [
+        char ',' >> go (n : v),
+        pure $ reverse (n : v)
+        ]
+
+clientsParser :: Parser ServerMessage
+clientsParser = do
+  try . chunk $ ":clients"
+  char ' '
+
+  names <- nameListParser
+  pure $ SMClients (fmap T.pack names)
+
 serverMessageParser :: Parser ServerMessage
 serverMessageParser = do
   command <- choice [
@@ -113,6 +141,7 @@ serverMessageParser = do
     errorMsgParser,
     unexpectedCommandParser,
     clientDisconnectedParser,
+    clientsParser,
     simpleTextParser
     ]
   eof

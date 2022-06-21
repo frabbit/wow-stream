@@ -1,18 +1,19 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# HLINT ignore "Use newtype instead of data" #-}
 {-# HLINT ignore "Use <$>" #-}
 module Wow.Data.Command where
-import Data.Text (Text)
-import Text.Megaparsec (Parsec, parse, choice, chunk, eof, oneOf, try, (<?>), some, ParseErrorBundle, ShowErrorComponent (showErrorComponent), (<|>), customFailure, noneOf, option, many)
-import Text.Megaparsec.Char (char)
-import Prelude
+
 import Control.Monad (void)
+import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Void (Void)
+import Text.Megaparsec (ParseErrorBundle, Parsec, ShowErrorComponent (showErrorComponent), choice, chunk, customFailure, eof, many, noneOf, oneOf, option, parse, some, try, (<?>), (<|>))
+import Text.Megaparsec.Char (char)
+import Prelude
 
 data Custom = InvalidUsername (Maybe String)
   deriving (Eq, Show, Ord)
-
 
 instance ShowErrorComponent Custom where
   showErrorComponent (InvalidUsername _) = " Invalid Username"
@@ -37,13 +38,20 @@ toText = \case
   CmdClients -> ":clients"
   CmdTalk txt -> ":talk " <> txt
 
-
 eol :: Parser ()
 eol = void $ char '\n'
 
 commandParser :: Parser Command
 commandParser = do
-  cmd <- choice [listenParser, greetingParser, unlistenParser, filterParser, clientsParser, talkParser]
+  cmd <-
+    choice
+      [ listenParser,
+        greetingParser,
+        unlistenParser,
+        filterParser,
+        clientsParser,
+        talkParser
+      ]
   eof
   pure cmd
 
@@ -51,16 +59,17 @@ greetingParser :: Parser Command
 greetingParser = do
   try . chunk $ ":greeting"
   char ' '
-  name <- some (oneOf $ ['a'..'z'] <> ['A'..'Z'] <> ['0'..'9'] <> "_-$!.:#") <|> do
-    badUsername <- option Nothing $ fmap Just $ some (noneOf [' '])
-    customFailure $ InvalidUsername badUsername
+  name <-
+    some (oneOf $ ['a' .. 'z'] <> ['A' .. 'Z'] <> ['0' .. '9'] <> "_-$!.:#") <|> do
+      badUsername <- option Nothing $ fmap Just $ some (noneOf [' '])
+      customFailure $ InvalidUsername badUsername
   pure $ CmdGreeting $ T.pack name
 
 filterParser :: Parser Command
 filterParser = do
   try . chunk $ ":filter"
   char ' '
-  name <- some (oneOf $ ['a'..'z'] <> ['A'..'Z'] <> ['0'..'9'] <> "_-$!.:#")
+  name <- some (oneOf $ ['a' .. 'z'] <> ['A' .. 'Z'] <> ['0' .. '9'] <> "_-$!.:#")
   pure $ CmdFilter $ T.pack name
 
 clientsParser :: Parser Command

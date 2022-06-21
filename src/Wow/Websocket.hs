@@ -20,7 +20,7 @@ import Wow.Effects.STM (STM, atomically)
 import Wow.Data.Command (Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
 import Wow.Data.ClientId (ClientId)
 import Wow.Effects.ClientChannel (receiveMessage, ClientChannel, sendMessage, ConnectionNotAvailableError, InvalidCommandError)
-import Wow.Data.ServerMessage (ServerMessage(SMSimpleText, SMAcknowledge, SMClientDisconnected))
+import Wow.Data.ServerMessage (ServerMessage(SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients))
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, liftVExceptT, runVExceptT)
 import Data.Function ((&))
 
@@ -150,7 +150,7 @@ talk c state = forever $ do
   case cmd of
     CmdClients -> do
           s <- lift $ atomically $ readTVar state
-          liftVExceptT $ sendMessage c.clientId $ (SMSimpleText $ "All users: " <> T.intercalate ", " (map (.name) s.clients))
+          liftVExceptT $ sendMessage c.clientId (SMClients $ map (.name) s.clients)
           pure ()
     CmdListen -> do
           liftVExceptT $ sendMessage c.clientId (SMAcknowledge "listen")
