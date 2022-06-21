@@ -13,7 +13,6 @@ import Test.QuickCheck (Arbitrary, oneof, elements, choose, vectorOf)
 import Test.QuickCheck.Arbitrary (arbitrary)
 import Data.Data (Typeable, Data)
 import qualified Data.Text as T
-import Debug.Trace (traceShowM)
 
 type Custom = Void
 
@@ -130,7 +129,6 @@ clientsParser :: Parser ServerMessage
 clientsParser = do
   try . chunk $ ":clients"
   char ' '
-
   names <- nameListParser
   pure $ SMClients (fmap T.pack names)
 

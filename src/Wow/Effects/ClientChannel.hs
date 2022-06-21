@@ -5,30 +5,22 @@ module Wow.Effects.ClientChannel where
 
 import Wow.Prelude
 import Wow.Data.ServerMessage (ServerMessage, toText)
-import Polysemy (Sem, reinterpretH, Member, bindT, getInitialStateT, pureT, subsume, embed, Embed, Members)
-import Wow.Effects.WebSocket (WebSocket, sendTextData, receiveData, withPingThread, runServer, acceptRequest)
+import Polysemy (Sem, reinterpretH, Member, Members)
+import Wow.Effects.WebSocket (WebSocket, sendTextData, receiveData)
 import Data.Kind (Type)
 import Polysemy.Internal.Tactics (liftT)
 import Network.WebSockets (Connection, ConnectionException (ConnectionClosed, CloseRequest))
-import Wow.Data.ClientId (ClientId, newClientId)
+import Wow.Data.ClientId (ClientId)
 import Wow.Data.Command (Command, parseCommand)
 import Polysemy.Input (Input, input)
 import qualified Data.Map.Strict as M
-import Data.Either (fromRight)
-import Polysemy.Error (Error)
 import Polysemy.Internal (send)
-import Wow.Effects.Errors (recover)
-import Conduit (MonadTrans(lift), MonadIO (liftIO))
-import Control.Monad.Except (runExceptT, ExceptT)
-import Control.Monad.Trans.Except (throwE)
-import Polysemy.AtomicState (AtomicState, atomicModify', atomicModify)
-import GHC.Natural (naturalToInteger, Natural)
-import Control.Monad (void)
+import Conduit (MonadTrans(lift))
+import Polysemy.AtomicState (AtomicState, atomicModify')
 import Debug.Trace (traceShowM)
-import Control.Exception (catch, throw)
+import Control.Exception (throw)
 import Veins.Data.VEither (VEither)
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, runVExceptT, throwVExceptT)
-import Data.Function ((&))
 
 type ClientLookup = M.Map ClientId Connection
 

@@ -6,11 +6,11 @@ module WowSpec (spec, withApp) where
 
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, wait, uninterruptibleCancel, race, Async)
-import Control.Concurrent.STM (TVar, atomically, modifyTVar, newTVarIO, putTMVar, readTVar, TMVar, newTChanIO, writeTChan, readTVarIO)
+import Control.Concurrent.STM (TVar, atomically, modifyTVar, newTVarIO, readTVar, newTChanIO, writeTChan, readTVarIO)
 import Control.Exception (bracket, Exception, throw)
 import Data.Text (Text)
 import Test.Hspec (Spec, describe, it, shouldBe, expectationFailure)
-import Wow.Websocket.TestClient (startTestClient, ClientId, OnReceive)
+import Wow.Websocket.TestClient (startTestClient, ClientId)
 import qualified Wow.WowApp as WA
 import Prelude
 import Control.Monad (forM_)

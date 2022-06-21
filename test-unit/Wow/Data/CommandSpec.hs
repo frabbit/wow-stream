@@ -2,7 +2,6 @@ module Wow.Data.CommandSpec where
 
 import Wow.TestPrelude
 import Wow.Data.Command (parseCommand, Command(..))
-import Test.Hspec (shouldBe, shouldSatisfy)
 import Data.Either (isLeft)
 
 spec :: Spec
