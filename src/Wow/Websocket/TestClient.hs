@@ -14,6 +14,7 @@ import Control.Exception (Exception (fromException), throwIO)
 import Control.Concurrent.Async (async, waitCatch, cancelWith, Async)
 import GHC.Natural (Natural, naturalToInteger)
 import Network.WebSockets (ConnectionException (CloseRequest))
+import Control.Monad (forever)
 
 data ExpectationError = ExpectationError Text
   deriving (Show, Eq)
@@ -60,38 +61,30 @@ waitIsEmptyTMVar x= do
 
 testClient :: ClientConfig -> WS.ClientApp ()
 testClient ClientConfig { send, onReceive, clientId } conn = do
-  let
-    loopReceive :: IO ()
-    loopReceive = do
-      (msg::Text) <- WS.receiveData conn
-      onReceive clientId msg
-      loopReceive
 
-  fiber <- async loopReceive
+  fiber <- async $ forever $ do
+    (msg::Text) <- WS.receiveData conn
+    onReceive clientId msg
 
   let loop = do
         cmd <- atomically $ takeTMVar send
         case cmd of
           Nothing -> do
-            --WS.sendClose conn ("Bye\n"::Text)
-            cancelWith fiber Stopped
             pure ()
           Just cmd' -> WS.sendTextData conn cmd' >> loop
   loop
+  WS.sendClose conn ("Bye\n"::Text)
   x <- waitCatch fiber
   case x of
     Left e -> do
-      let (x1::Maybe Stopped) = fromException e
-      let (x2::Maybe ConnectionException) = fromException e
-      case (x1, x2) of
-        (Just _, _) -> pure ()
-        (_, Just CloseRequest {}) -> pure ()
+      let (connErr::Maybe ConnectionException) = fromException e
+      case connErr of
+        Just CloseRequest {} -> pure ()
         _ -> do
           traceShowM e
           throwIO e
 
     Right _ -> pure ()
-  traceShowM "done"
 
 
 
