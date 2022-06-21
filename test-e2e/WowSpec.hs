@@ -41,13 +41,10 @@ startTestclientTyped :: ClientId
       Async ())
 startTestclientTyped clientId port onReceive = do
   let
-    onReceive' cId msg = do
-      let
-        res = parseServerMessage msg
-      case res of
-        Right m -> onReceive cId m
-        Left l ->
-          expectationFailure $ "ServerMessage couldn't be parsed: " <> show l
+    onReceive' cId msg = case parseServerMessage msg of
+      Right m -> onReceive cId m
+      Left l ->
+        expectationFailure $ "ServerMessage couldn't be parsed: " <> show l
 
   (send, fiber) <- startTestClient clientId port onReceive'
   let send' = send . fmap toText
