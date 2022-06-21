@@ -109,6 +109,7 @@ library
     , optparse-applicative
     , polysemy
     , polysemy-conc
+    , proxied
     , quickcheck-instances
     , random
     , record-dot-preprocessor >=0.2.14
@@ -183,6 +184,7 @@ executable wow-stream-exe
     , optparse-applicative
     , polysemy
     , polysemy-conc
+    , proxied
     , quickcheck-instances
     , random
     , record-dot-preprocessor >=0.2.14
@@ -234,6 +236,7 @@ test-suite wow-stream-test-all
       Veins.Data.Variant.EitherUtilsSpec
       Veins.Data.VariantSpec
       Wow.Data.CommandSpec
+      Wow.Data.ServerMessageSpec
       E2ESpec
       WowSpec
       Paths_wow_stream
@@ -299,6 +302,7 @@ test-suite wow-stream-test-all
     , optparse-applicative
     , polysemy
     , polysemy-conc
+    , proxied
     , quickcheck-instances
     , random
     , record-dot-preprocessor >=0.2.14

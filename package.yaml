@@ -59,6 +59,7 @@ dependencies:
 - random
 - containers
 - uuid
+- proxied
 
 default-extensions:
   - TypeOperators
