@@ -111,7 +111,7 @@ handleClient state clientId = evalVExceptT $ do
 
 
 greeting :: forall r . (Members '[Finally, STM, ClientChannel] r) => _ -> _ -> _ -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
-greeting n clientId state = VExceptT $ flip finally (evalVExceptT $ disconnect state client) $ runVExceptT handleGreeting
+greeting n clientId state = VExceptT $ flip finally (disconnect state client) $ runVExceptT handleGreeting
   where
     handleGreeting :: VExceptT _ (Sem r) ()
     handleGreeting = do
@@ -131,8 +131,8 @@ greeting n clientId state = VExceptT $ flip finally (evalVExceptT $ disconnect s
           talk client state
     client = Client { name = n, clientId, listening = False, tweetFilter = Nothing }
 
-disconnect :: (Members '[ClientChannel, STM] r) => _ -> _ -> VExceptT '[] (Sem r) ()
-disconnect state client = do
+disconnect :: (Members '[ClientChannel, STM] r) => _ -> _ -> (Sem r) ()
+disconnect state client = evalVExceptT $ do
   traceShowM ("disconnect"::Text)
   s <- lift $ atomically $ do
     modifyTVar state $ \s -> removeClient client s
