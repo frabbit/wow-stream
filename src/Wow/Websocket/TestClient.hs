@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Move brackets to avoid $" #-}
 {-# HLINT ignore "Use newtype instead of data" #-}
-{-# LANGUAGE StandaloneDeriving #-}
 module Wow.Websocket.TestClient where
 import Prelude
 
@@ -11,20 +10,10 @@ import qualified Network.WebSockets as WS
 import Data.Text (Text)
 import Debug.Trace (traceShowM)
 import Control.Exception (Exception (fromException), throwIO)
-import Control.Concurrent.Async (async, waitCatch, cancelWith, Async)
+import Control.Concurrent.Async (async, waitCatch, Async)
 import GHC.Natural (Natural, naturalToInteger)
 import Network.WebSockets (ConnectionException (CloseRequest))
 import Control.Monad (forever)
-
-data ExpectationError = ExpectationError Text
-  deriving (Show, Eq)
-
-instance Exception ExpectationError
-
-data Stopped = Stopped deriving (Show, Eq)
-
-instance Exception Stopped
-
 
 type OnReceive = ClientId -> Text -> IO ()
 
