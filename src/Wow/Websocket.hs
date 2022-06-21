@@ -20,7 +20,7 @@ import Wow.Effects.STM (STM, atomically)
 import Wow.Data.Command (Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
 import Wow.Data.ClientId (ClientId)
 import Wow.Effects.ClientChannel (receiveMessage, ClientChannel, sendMessage, ConnectionNotAvailableError, InvalidCommandError)
-import Wow.Data.ServerMessage (ServerMessage(SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients))
+import Wow.Data.ServerMessage (ServerMessage(SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined))
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, liftVExceptT, runVExceptT)
 import Data.Function ((&))
 
@@ -127,7 +127,7 @@ greeting n clientId state = VExceptT $ flip finally (disconnect state client) $ 
         Nothing -> sendMessage clientId (SMSimpleText "User already exists")
         Just (s', s) -> do
           sendMessage clientId (SMSimpleText $ "Welcome! Users: " <> T.intercalate ", " (map (.name) s.clients))
-          broadcast (SMSimpleText $ client.name <> " joined") s'
+          broadcast (SMClientJoined $ client.name) s'
           talk client state
     client = Client { name = n, clientId, listening = False, tweetFilter = Nothing }
 

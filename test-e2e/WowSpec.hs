@@ -23,7 +23,7 @@ import Wow.WowApp (defaultAppConfig, AppConfig, TwitterStreamSource (TSSFakeChan
 import Wow.Twitter.Types (StreamEntry(StreamEntry, tweet, matchingRules), Tweet (Tweet, text, tweetId))
 
 import Wow.Data.Command (Command (CmdGreeting, CmdFilter, CmdListen, CmdUnlisten, CmdClients), toText)
-import Wow.Data.ServerMessage (ServerMessage (SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients), parseServerMessage)
+import Wow.Data.ServerMessage (ServerMessage (SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined), parseServerMessage)
 
 type SendCommand = Maybe Command -> IO ()
 
@@ -197,7 +197,7 @@ spec = describe "WowApp" $ do
   it "should allow multiple Clients to login" . withApp $ \cfg -> do
     withClients2 cfg.port ("Pim", "Wim") $ \(send1, send2, msgs) -> do
       sendAndWait send1 msgs (Just $ CmdGreeting "Pim") [("Pim", SMSimpleText "Welcome! Users: Pim")]
-      sendAndWait send2 msgs (Just $ CmdGreeting "Wim") [("Wim", SMSimpleText "Welcome! Users: Wim, Pim"), ("Pim",SMSimpleText "Wim joined")]
+      sendAndWait send2 msgs (Just $ CmdGreeting "Wim") [("Wim", SMSimpleText "Welcome! Users: Wim, Pim"), ("Pim",SMClientJoined "Wim")]
       sendAndWait send1 msgs Nothing [("Wim",SMClientDisconnected "Pim")]
       sendAndWait send2 msgs Nothing []
 

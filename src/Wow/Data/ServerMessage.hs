@@ -38,6 +38,7 @@ data ServerMessage
   | SMError Error
   | SMUnexpectedCommand Text
   | SMClientDisconnected Text
+  | SMClientJoined Text
   | SMSimpleText Text
   | SMClients [Text]
   deriving (Show, Eq, Typeable, Data)
@@ -50,6 +51,7 @@ instance Arbitrary ServerMessage where
       SMUnexpectedCommand <$> elements ["A", "B"],
       SMClientDisconnected <$> elements ["A", "B"],
       SMSimpleText <$> elements ["a", "b"],
+      SMClientJoined <$> elements ["A","B"],
       SMClients <$> do
         k <- choose (0,4)
         vectorOf k $ elements ["Pim", "Wim", "Jim", "Tim", "Jill", "Sarah"]
@@ -67,6 +69,7 @@ toText = \case
   SMError e -> ":error " <> errorToText e
   SMClients cl -> ":clients " <> T.intercalate "," cl
   SMUnexpectedCommand cmd -> ":unexpectedCommand " <> cmd
+  SMClientJoined client -> ":clientJoined " <> client
   SMClientDisconnected client -> ":clientDisconnected " <> client
   SMSimpleText t -> t
 
@@ -112,6 +115,13 @@ clientDisconnectedParser = do
   name <- many (noneOf ['\n'])
   pure $ SMClientDisconnected $ Text.pack name
 
+clientJoinedParser :: Parser ServerMessage
+clientJoinedParser = do
+  try . chunk $ ":clientJoined"
+  char ' '
+  name <- many (noneOf ['\n'])
+  pure $ SMClientJoined $ Text.pack name
+
 nameListParser :: Parser [String]
 nameListParser = go []
   where
@@ -140,6 +150,7 @@ serverMessageParser = do
     unexpectedCommandParser,
     clientDisconnectedParser,
     clientsParser,
+    clientJoinedParser,
     simpleTextParser
     ]
   eof
