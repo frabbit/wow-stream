@@ -57,6 +57,8 @@ dependencies:
 - hspec
 - async
 - random
+- containers
+- uuid
 
 default-extensions:
   - TypeOperators

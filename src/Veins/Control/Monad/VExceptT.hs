@@ -9,6 +9,8 @@ import Control.Category ((>>>))
 import Veins.Data.VEither
 import Veins.Data.Variant (InjectVariant, LiftVariant, RemoveVariant, inject, remove)
 import Veins.Prelude
+import Control.Monad.Trans (MonadTrans)
+import Control.Monad.Trans.Class (lift)
 
 newtype VExceptT errs m a = VExceptT {runVExceptT :: m (VEither errs a)}
 
@@ -29,6 +31,10 @@ instance (Monad m) => Monad (VExceptT errs m) where
     case a' of
       Left errs -> pure . mkVLeft $ errs
       Right v -> runVExceptT $ f v
+
+instance MonadTrans (VExceptT errs) where
+  lift :: (Monad m) => m a -> VExceptT errs m a
+  lift = VExceptT . fmap pure
 
 liftVExceptT :: (Functor m, LiftVariant errs1 errs2) => VExceptT errs1 m a -> VExceptT errs2 m a
 liftVExceptT = VExceptT . fmap liftVEither . runVExceptT
