@@ -28,6 +28,16 @@ data Command
 
 type Parser = Parsec Custom Text
 
+toText :: Command -> Text
+toText = \case
+  CmdGreeting txt -> ":greeting " <> txt
+  CmdListen -> ":listen"
+  CmdFilter txt -> ":filter " <> txt
+  CmdUnlisten -> ":unlisten"
+  CmdClients -> ":clients"
+  CmdTalk txt -> ":talk " <> txt
+
+
 eol :: Parser ()
 eol = void $ char '\n'
 

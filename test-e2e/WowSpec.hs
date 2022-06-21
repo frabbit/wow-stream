@@ -5,12 +5,12 @@
 module WowSpec (spec, withApp) where
 
 import Control.Concurrent (threadDelay)
-import Control.Concurrent.Async (async, wait, uninterruptibleCancel, race)
+import Control.Concurrent.Async (async, wait, uninterruptibleCancel, race, Async)
 import Control.Concurrent.STM (TVar, atomically, modifyTVar, newTVarIO, putTMVar, readTVar, TMVar, newTChanIO, writeTChan, readTVarIO)
 import Control.Exception (bracket, Exception, throw)
 import Data.Text (Text)
-import Test.Hspec (Spec, describe, it, shouldBe)
-import Wow.Websocket.TestClient (startTestClient, ClientId)
+import Test.Hspec (Spec, describe, it, shouldBe, expectationFailure)
+import Wow.Websocket.TestClient (startTestClient, ClientId, OnReceive)
 import qualified Wow.WowApp as WA
 import Prelude
 import Control.Monad (forM_)
@@ -22,9 +22,38 @@ import GHC.Num (integerToNatural)
 import Wow.WowApp (defaultAppConfig, AppConfig, TwitterStreamSource (TSSFakeChannel))
 import Wow.Twitter.Types (StreamEntry(StreamEntry, tweet, matchingRules), Tweet (Tweet, text, tweetId))
 
+import Wow.Data.Command (Command (CmdGreeting, CmdFilter, CmdListen, CmdUnlisten), toText)
+import Wow.Data.ServerMessage (ServerMessage (SMSimpleText), parseServerMessage)
+
+type SendCommand = Maybe Text -> IO ()
+
+type SendCommand' = Maybe Command -> IO ()
+
 data Timeout = Timeout Text deriving (Show, Eq)
 
 instance Exception Timeout
+
+type OnReceive' = ClientId -> ServerMessage -> IO ()
+
+startTestclientTyped :: ClientId
+  -> Natural
+  -> OnReceive'
+  -> IO
+      (SendCommand',
+      Async ())
+startTestclientTyped clientId port onReceive = do
+  let
+    onReceive' cId msg = do
+      let
+        res = parseServerMessage msg
+      case res of
+        Right m -> onReceive cId m
+        Left l ->
+          expectationFailure $ "ServerMessage couldn't be parsed: " <> show l
+
+  (send, fiber) <- startTestClient clientId port onReceive'
+  let send' = send . fmap toText
+  pure (send', fiber)
 
 removeFromReceived :: Eq a => TVar [a] -> a -> IO ()
 removeFromReceived allReceived msg = do
@@ -94,19 +123,19 @@ actionAndWaitWithWaitTime waitTime action messages messagesToWaitFor = do
       action
       wait a
 
-sendAndWaitWithWaitTime :: (Eq a, Show a) => Int -> TMVar (Maybe Text) -> TVar [a] -> Maybe Text -> [a] -> IO ()
+sendAndWaitWithWaitTime :: (Eq a, Show a) => Int -> SendCommand' -> TVar [a] -> Maybe Command -> [a] -> IO ()
 sendAndWaitWithWaitTime waitTime send messages msg messagesToWaitFor = do
   actionAndWaitWithWaitTime waitTime action messages messagesToWaitFor
   where
-    action = atomically $ putTMVar send msg
+    action = send msg
 
 
-sendAndWait :: (Eq a, Show a) => TMVar (Maybe Text) -> TVar [a] -> Maybe Text -> [a] -> IO ()
+sendAndWait :: (Eq a, Show a) => SendCommand' -> TVar [a] -> Maybe Command -> [a] -> IO ()
 sendAndWait = sendAndWaitWithWaitTime 400_000
 
-doLogin :: TMVar (Maybe Text) -> TVar [Text] -> IO ()
+doLogin :: SendCommand' -> TVar [ServerMessage] -> IO ()
 doLogin send msgs = do
-  sendAndWait send msgs (Just ":greeting Pim") ["Welcome! Users: Pim"]
+  sendAndWait send msgs (Just $ CmdGreeting "Pim") [SMSimpleText "Welcome! Users: Pim"]
 
 sendStreamEntryAction :: AppConfig -> StreamEntry -> IO ()
 sendStreamEntryAction cfg entry =
@@ -120,25 +149,25 @@ spec = describe "WowApp" $ do
   it "should acknowledge filter command" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just ":filter xyz") ["filter acknowledged."]
+      sendAndWait send msgs (Just $ CmdFilter "xyz") [SMSimpleText "filter acknowledged."]
       sendAndWait send msgs Nothing []
   it "should acknowledge listen command" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just ":listen") ["listen acknowledged."]
+      sendAndWait send msgs (Just CmdListen) [SMSimpleText "listen acknowledged."]
       sendAndWait send msgs Nothing []
   it "should receive listen events" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just ":listen") ["listen acknowledged."]
+      sendAndWait send msgs (Just CmdListen) [SMSimpleText "listen acknowledged."]
       let action = sendStreamEntryAction cfg (StreamEntry{tweet = Tweet { text = "This is a tweet", tweetId = "1" }, matchingRules = Nothing})
-      actionAndWait action msgs ["This is a tweet"]
+      actionAndWait action msgs [SMSimpleText "This is a tweet"]
       sendAndWait send msgs Nothing []
   it "should filter events that don't match the given filter" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just ":listen") ["listen acknowledged."]
-      sendAndWait send msgs (Just ":filter abc") ["filter acknowledged."]
+      sendAndWait send msgs (Just CmdListen) [SMSimpleText "listen acknowledged."]
+      sendAndWait send msgs (Just $ CmdFilter "abc") [SMSimpleText "filter acknowledged."]
       let action1 = sendStreamEntryAction cfg (StreamEntry{tweet = Tweet { text = "This is a tweet", tweetId = "1" }, matchingRules = Nothing})
       actionAndWait action1 msgs []
       expectNoMessagesFor 400_000 msgs
@@ -146,49 +175,49 @@ spec = describe "WowApp" $ do
   it "should filter events that don't match the given filter" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just ":listen") ["listen acknowledged."]
-      sendAndWait send msgs (Just ":filter abc") ["filter acknowledged."]
+      sendAndWait send msgs (Just CmdListen) [SMSimpleText "listen acknowledged."]
+      sendAndWait send msgs (Just $ CmdFilter "abc") [SMSimpleText "filter acknowledged."]
       let action1 = sendStreamEntryAction cfg (StreamEntry{tweet = Tweet { text = "This is a tweet", tweetId = "1" }, matchingRules = Nothing})
       actionAndWait action1 msgs []
       (`shouldBe` []) <$> readTVarIO msgs
       let action2 = sendStreamEntryAction cfg (StreamEntry{tweet = Tweet { text = "has abc", tweetId = "1" }, matchingRules = Nothing})
-      actionAndWait action2 msgs ["has abc"]
+      actionAndWait action2 msgs [SMSimpleText "has abc"]
       (`shouldBe` []) <$> readTVarIO msgs
       sendAndWait send msgs Nothing []
   it "should acknowledge unlisten command" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       doLogin send msgs
-      sendAndWait send msgs (Just ":listen") ["listen acknowledged."]
-      sendAndWait send msgs (Just ":unlisten") ["unlisten acknowledged."]
+      sendAndWait send msgs (Just CmdListen) [SMSimpleText "listen acknowledged."]
+      sendAndWait send msgs (Just CmdUnlisten) [SMSimpleText "unlisten acknowledged."]
       sendAndWait send msgs Nothing []
   it "should allow Clients to login" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
-      sendAndWait send msgs (Just ":greeting Pim") ["Welcome! Users: Pim"]
+      sendAndWait send msgs (Just $ CmdGreeting "Pim") [SMSimpleText "Welcome! Users: Pim"]
       sendAndWait send msgs Nothing []
   it "should allow multiple Clients to login" . withApp $ \cfg -> do
     withClients2 cfg.port ("Pim", "Wim") $ \(send1, send2, msgs) -> do
-      sendAndWait send1 msgs (Just ":greeting Pim") [("Pim", "Welcome! Users: Pim")]
-      sendAndWait send2 msgs (Just ":greeting Wim") [("Wim", "Welcome! Users: Wim, Pim"), ("Pim","Wim joined")]
-      sendAndWait send1 msgs Nothing [("Wim","Pim disconnected")]
+      sendAndWait send1 msgs (Just $ CmdGreeting "Pim") [("Pim", SMSimpleText "Welcome! Users: Pim")]
+      sendAndWait send2 msgs (Just $ CmdGreeting "Wim") [("Wim", SMSimpleText "Welcome! Users: Wim, Pim"), ("Pim",SMSimpleText "Wim joined")]
+      sendAndWait send1 msgs Nothing [("Wim",SMSimpleText "Pim disconnected")]
       sendAndWait send2 msgs Nothing []
 
-withClient :: Natural -> ClientId -> ((TMVar (Maybe Text), TVar [Text]) -> IO ()) -> IO ()
+withClient :: Natural -> ClientId -> ((SendCommand', TVar [ServerMessage]) -> IO ()) -> IO ()
 withClient port c1 action = do
   msgs <- newTVarIO []
   let
     onReceive _ msg = atomically $ modifyTVar msgs (msg :)
-  (send1, fiber1) <- startTestClient c1 port onReceive
+  (send1, fiber1) <- startTestclientTyped c1 port onReceive
 
   action (send1, msgs)
   wait fiber1
 
-withClients2 :: Natural -> (ClientId, ClientId) -> ((TMVar (Maybe Text), TMVar (Maybe Text), TVar [(ClientId, Text)]) -> IO ()) -> IO ()
+withClients2 :: Natural -> (ClientId, ClientId) -> ((SendCommand', SendCommand', TVar [(ClientId, ServerMessage)]) -> IO ()) -> IO ()
 withClients2 port (c1, c2) action = do
   msgs <- newTVarIO []
   let
     onReceive clientId msg = atomically $ modifyTVar msgs ((clientId, msg) :)
-  (send1, fiber1) <- startTestClient c1 port onReceive
-  (send2, fiber2) <- startTestClient c2 port onReceive
+  (send1, fiber1) <- startTestclientTyped c1 port onReceive
+  (send2, fiber2) <- startTestclientTyped c2 port onReceive
   action (send1, send2, msgs)
   wait fiber1
   wait fiber2

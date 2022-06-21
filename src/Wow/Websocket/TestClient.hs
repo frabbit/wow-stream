@@ -4,7 +4,7 @@
 module Wow.Websocket.TestClient where
 import Prelude
 
-import Control.Concurrent.STM (TMVar, newEmptyTMVarIO, atomically, takeTMVar, isEmptyTMVar, STM)
+import Control.Concurrent.STM (TMVar, newEmptyTMVarIO, atomically, takeTMVar, isEmptyTMVar, STM, putTMVar)
 import Network.Socket (withSocketsDo)
 import qualified Network.WebSockets as WS
 import Data.Text (Text)
@@ -15,30 +15,38 @@ import GHC.Natural (Natural, naturalToInteger)
 import Network.WebSockets (ConnectionException (CloseRequest))
 import Control.Monad (forever)
 
-type OnReceive = ClientId -> Text -> IO ()
+type Message = Text
+
+type OnReceive = ClientId -> Message -> IO ()
 
 type ClientId = Text
 
+type Command = Text
+
 data ClientConfig = ClientConfig {
-  send :: TMVar (Maybe Text),
+  send :: TMVar (Maybe Command),
   onReceive :: OnReceive,
   port :: Natural,
   clientId :: ClientId
 }
 
 data ClientAction
-  = CAReceive Text
-  | CASend (Maybe Text)
+  = CAReceive Message
+  | CASend (Maybe Command)
+
 
 startTestClient :: ClientId -> Natural -> OnReceive -> IO
-     (TMVar (Maybe Text), Async ())
+     (Maybe Command -> IO (), Async ())
 startTestClient clientId port onReceive = do
   send <- newEmptyTMVarIO
   let config = ClientConfig {
     clientId, send, onReceive, port
   }
   fiber <- async $ exec config
-  pure (send, fiber)
+  let
+    send' v = do
+      atomically $ putTMVar send v
+  pure (send', fiber)
   where
     exec :: ClientConfig -> IO ()
     exec config = withSocketsDo $ WS.runClient "127.0.0.1" (fromInteger $ naturalToInteger config.port) "/" (testClient config)
