@@ -20,7 +20,7 @@ import Wow.Effects.STM (STM, atomically)
 import Wow.Data.Command (Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
 import Wow.Data.ClientId (ClientId)
 import Wow.Effects.ClientChannel (receiveMessage, ClientChannel, sendMessage, ConnectionNotAvailableError, InvalidCommandError (InvalidCommandError))
-import Wow.Data.ServerMessage (ServerMessage(SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMUnexpectedCommand, SMWelcome))
+import Wow.Data.ServerMessage (ServerMessage(SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMUnexpectedCommand, SMWelcome, SMError), Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, liftVExceptT, runVExceptT)
 import Data.Function ((&))
 
@@ -101,7 +101,7 @@ handleClient state clientId = evalVExceptT $ do
   msg <- receiveMessage clientId
   case msg of
     CmdGreeting n -> liftVExceptT $ greeting n clientId state
-    _ -> liftVExceptT $ sendMessage clientId (SMSimpleText "Unexpected command")
+    _ -> liftVExceptT $ sendMessage clientId (SMError ErrNotAuthenticated)
   `catchVExceptT` (
     \(_::ConnectionNotAvailableError) -> do
       traceShowM ("Conn not available"::Text)
@@ -128,7 +128,7 @@ greeting n clientId state = VExceptT $ flip finally (disconnect state client) $ 
           s <- readTVar state
           pure $ Just (s', s)
       case res of
-        Nothing -> sendMessage clientId (SMSimpleText "User already exists")
+        Nothing -> sendMessage clientId (SMError ErrUsernameExists)
         Just (s', s) -> do
           sendMessage clientId (SMWelcome (map (.name) s.clients))
           broadcast (SMClientJoined $ client.name) s'
@@ -171,6 +171,6 @@ talk c state = forever $ do
     CmdTalk msg ->
           (lift $ atomically $ readTVar state) >>= (liftVExceptT . broadcast (SMSimpleText $ c.name `mappend` ": " `mappend` msg))
     CmdGreeting _ ->
-          liftVExceptT $ sendMessage c.clientId (SMSimpleText "Greeting already succeeded")
+          liftVExceptT $ sendMessage c.clientId (SMError ErrGreetingAlreadySucceded)
 
   `catchVExceptT` (\(InvalidCommandError t) -> sendMessage c.clientId (SMUnexpectedCommand t))

@@ -19,18 +19,24 @@ type Custom = Void
 data Error
   = ErrUsernameExists
   | ErrInvalidCommand
+  | ErrGreetingAlreadySucceded
+  | ErrNotAuthenticated
   deriving (Show,Eq,Typeable, Data)
 
 errorToText :: Error -> Text
 errorToText = \case
   ErrUsernameExists -> "UsernameExists"
   ErrInvalidCommand -> "InvalidCommand"
+  ErrGreetingAlreadySucceded -> "GreetingAlreadySucceded"
+  ErrNotAuthenticated -> "NotAuthenticated"
 
 instance Arbitrary Error where
   arbitrary = do
     elements [
       ErrUsernameExists,
-      ErrInvalidCommand
+      ErrInvalidCommand,
+      ErrGreetingAlreadySucceded,
+      ErrNotAuthenticated
       ]
 
 data ServerMessage
@@ -100,7 +106,9 @@ errorParser :: Parser Error
 errorParser = do
   choice [
     chunk "UsernameExists" >> pure ErrUsernameExists,
-    chunk "InvalidCommand" >> pure ErrInvalidCommand
+    chunk "InvalidCommand" >> pure ErrInvalidCommand,
+    chunk "GreetingAlreadySucceded" >> pure ErrGreetingAlreadySucceded,
+    chunk "NotAuthenticated" >> pure ErrNotAuthenticated
     ]
 
 errorMsgParser :: Parser ServerMessage

@@ -4,15 +4,13 @@
 {-# HLINT ignore "Use newtype instead of data" #-}
 module WowSpec (spec, withApp) where
 
+import Wow.TestPrelude
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, wait, uninterruptibleCancel, race, Async)
 import Control.Concurrent.STM (TVar, atomically, modifyTVar, newTVarIO, readTVar, newTChanIO, writeTChan, readTVarIO)
 import Control.Exception (bracket, Exception, throw)
-import Data.Text (Text)
-import Test.Hspec (Spec, describe, it, shouldBe, expectationFailure)
 import Wow.Websocket.TestClient (startTestClient, ClientId)
 import qualified Wow.WowApp as WA
-import Prelude
 import Control.Monad (forM_)
 import Debug.Trace (traceM, traceShowM)
 import qualified Data.Text as T
@@ -23,7 +21,8 @@ import Wow.WowApp (defaultAppConfig, AppConfig, TwitterStreamSource (TSSFakeChan
 import Wow.Twitter.Types (StreamEntry(StreamEntry, tweet, matchingRules), Tweet (Tweet, text, tweetId))
 
 import Wow.Data.Command (Command (CmdGreeting, CmdFilter, CmdListen, CmdUnlisten, CmdClients), toText)
-import Wow.Data.ServerMessage (ServerMessage (SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMWelcome, SMTweet), parseServerMessage)
+import Wow.Data.ServerMessage (ServerMessage (SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMWelcome, SMTweet, SMError), parseServerMessage, Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
+import Test.Hspec (expectationFailure)
 
 type SendCommand = Maybe Command -> IO ()
 
@@ -194,11 +193,26 @@ spec = describe "WowApp" $ do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
       sendAndWait send msgs (Just $ CmdGreeting "Pim") [SMWelcome ["Pim"]]
       sendAndWait send msgs Nothing []
+  it "should send error when trying to run a command without greeting" . withApp $ \cfg -> do
+    withClient cfg.port "Pim" $ \(send, msgs) -> do
+      sendAndWait send msgs (Just CmdListen) [SMError ErrNotAuthenticated]
+      sendAndWait send msgs Nothing []
+  it "should send unexpected command when trying to greet twice" . withApp $ \cfg -> do
+    withClient cfg.port "Pim" $ \(send, msgs) -> do
+      sendAndWait send msgs (Just $ CmdGreeting "Pim") [SMWelcome ["Pim"]]
+      sendAndWait send msgs (Just $ CmdGreeting "Pim") [SMError ErrGreetingAlreadySucceded]
+      sendAndWait send msgs Nothing []
   it "should allow multiple Clients to login" . withApp $ \cfg -> do
     withClients2 cfg.port ("Pim", "Wim") $ \(send1, send2, msgs) -> do
       sendAndWait send1 msgs (Just $ CmdGreeting "Pim") [("Pim", SMWelcome ["Pim"])]
       sendAndWait send2 msgs (Just $ CmdGreeting "Wim") [("Wim", SMWelcome ["Wim", "Pim"]), ("Pim",SMClientJoined "Wim")]
       sendAndWait send1 msgs Nothing [("Wim",SMClientDisconnected "Pim")]
+      sendAndWait send2 msgs Nothing []
+  it "should not allow the same name twice" . withApp $ \cfg -> do
+    withClients2 cfg.port ("Pim1", "Pim2") $ \(send1, send2, msgs) -> do
+      sendAndWait send1 msgs (Just $ CmdGreeting "Pim") [("Pim1", SMWelcome ["Pim"])]
+      sendAndWait send2 msgs (Just $ CmdGreeting "Pim") [("Pim2", SMError ErrUsernameExists)]
+      sendAndWait send1 msgs Nothing []
       sendAndWait send2 msgs Nothing []
 
 withClient :: Natural -> ClientId -> ((SendCommand, TVar [ServerMessage]) -> IO ()) -> IO ()

@@ -9,10 +9,10 @@ import Network.Socket (withSocketsDo)
 import qualified Network.WebSockets as WS
 import Data.Text (Text)
 import Debug.Trace (traceShowM)
-import Control.Exception (Exception (fromException), throwIO)
+import Control.Exception (Exception (fromException), throwIO, catch)
 import Control.Concurrent.Async (async, waitCatch, Async)
 import GHC.Natural (Natural, naturalToInteger)
-import Network.WebSockets (ConnectionException (CloseRequest))
+import Network.WebSockets (ConnectionException (CloseRequest, ConnectionClosed))
 import Control.Monad (forever)
 
 type Message = Text
@@ -70,13 +70,14 @@ testClient ClientConfig { send, onReceive, clientId } conn = do
             pure ()
           Just cmd' -> WS.sendTextData conn cmd' >> loop
   loop
-  WS.sendClose conn ("Bye\n"::Text)
+  WS.sendClose conn ("Bye\n"::Text) `catch` \(_ ::ConnectionException) -> pure ()
   x <- waitCatch fiber
   case x of
     Left e -> do
       let (connErr::Maybe ConnectionException) = fromException e
       case connErr of
         Just CloseRequest {} -> pure ()
+        Just ConnectionClosed -> pure ()
         _ -> do
           traceShowM e
           throwIO e
