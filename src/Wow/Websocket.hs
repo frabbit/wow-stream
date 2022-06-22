@@ -21,8 +21,6 @@ import Data.Function ((&))
 import Wow.Data.ServerState (ServerState, addClient, nameExists, removeClient, setClientListening, setClientFilter)
 import Wow.Data.Client (Client (..))
 import Polysemy.AtomicState (AtomicState, atomicState, atomicGet, atomicModify)
-import Polysemy.Input (Input)
-
 
 broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 broadcastSilent message s = do
@@ -41,7 +39,7 @@ broadcast message s = do
   traceShowM message
   broadcastSilent message s
 
-handleClient :: forall r. (Members '[ClientChannel, Finally, Input ServerState, AtomicState ServerState ] r) => ClientId -> (Sem r) ()
+handleClient :: forall r. (Members '[ClientChannel, Finally, AtomicState ServerState ] r) => ClientId -> (Sem r) ()
 handleClient clientId = evalVExceptT $ do
   msg <- receiveMessage clientId
   case msg of
@@ -59,7 +57,7 @@ handleClient clientId = evalVExceptT $ do
     )
 
 
-greeting :: forall r . (Members '[Finally, ClientChannel, Input ServerState, AtomicState ServerState] r) => Text -> ClientId -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+greeting :: forall r . (Members '[Finally, ClientChannel, AtomicState ServerState] r) => Text -> ClientId -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 greeting n clientId = VExceptT $ flip finally (disconnect client) $ runVExceptT handleGreeting
   where
     handleGreeting :: VExceptT '[ConnectionNotAvailableError] (Sem r) ()
@@ -79,7 +77,7 @@ greeting n clientId = VExceptT $ flip finally (disconnect client) $ runVExceptT 
           talk client
     client = Client { name = n, clientId, listening = False, tweetFilter = Nothing }
 
-disconnect :: (Members '[ClientChannel, AtomicState ServerState, Input ServerState] r) => Client -> (Sem r) ()
+disconnect :: (Members '[ClientChannel, AtomicState ServerState] r) => Client -> (Sem r) ()
 disconnect client = evalVExceptT $ do
   traceShowM ("disconnect"::Text)
   s <- lift $ atomicState @ServerState $ \s -> let sn = removeClient client s in (sn, sn)
@@ -90,7 +88,7 @@ disconnect client = evalVExceptT $ do
     traceShowM ("Conn not available"::Text)
     pure ())
 
-talk :: (Members [ClientChannel, AtomicState ServerState, Input ServerState] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+talk :: (Members [ClientChannel, AtomicState ServerState] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 talk c = forever $ do
   cmd <- receiveMessage c.clientId
   case cmd of
