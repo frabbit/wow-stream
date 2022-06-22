@@ -11,15 +11,14 @@ import Control.Concurrent.STM (TChan, newTVarIO)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Debug.Trace (traceShowM)
-import GHC.Conc (TVar, readTVar)
-import GHC.Conc.Sync (newTVar)
+import GHC.Conc (readTVar)
 import GHC.Natural (Natural)
-import Polysemy (Embed, Final, Member, Members, Sem, embedToFinal, raise_, runFinal, subsume)
+import Polysemy (Embed, Final, Members, Sem, embedToFinal, raise_, runFinal, subsume)
 import Polysemy.Async (Async, asyncToIOFinal, sequenceConcurrently)
 import Polysemy.AtomicState (AtomicState, runAtomicStateTVar)
 import Polysemy.Conc (Critical, Race, interpretCritical, interpretInterruptOnce, interpretRace)
 import Polysemy.Conc.Effect.Interrupt (Interrupt, killOnQuit, unregister)
-import Polysemy.Input (Input, runInputSem)
+import Polysemy.Input (Input, runInputSem, input)
 import Wow.Data.ServerMessage (ServerMessage (SMTweet))
 import Wow.Data.ServerState (ServerState, newServerState)
 import Wow.Effects.ClientChannel (ClientChannel, interpretClientChannel)
@@ -36,15 +35,15 @@ import Wow.Prelude
 import Wow.Twitter.Types (StreamEntry)
 import Wow.Websocket (broadcastSilentWhen, handleClient)
 
-filteredStreamBroadcast :: forall r. (Members [ClientChannel, STM] r, Member TwitterStream r) => TVar ServerState -> Sem r ()
-filteredStreamBroadcast var = tSSampleStream broadcastC
+filteredStreamBroadcast :: forall r. (Members '[ClientChannel, STM, Input ServerState, AtomicState ServerState, TwitterStream] r) => Sem r ()
+filteredStreamBroadcast = tSSampleStream broadcastC
   where
     broadcastC :: StreamEntry -> Sem r ()
     broadcastC s = do
       traceShowM s.tweet.text
       traceShowM s
       let when client = client.listening && toBool (fmap (`T.isInfixOf` s.tweet.text) client.tweetFilter)
-      serverState <- atomically $ readTVar var
+      serverState <- input @ServerState
       broadcastSilentWhen when (SMTweet s.tweet.text) serverState
       pure ()
       where
@@ -78,6 +77,7 @@ type AppModules r =
      HttpLongPolling,
      Env,
      Input ClientLookup,
+     Input ServerState,
      AtomicState ClientLookup,
      AtomicState ServerState,
      Interrupt,
@@ -88,9 +88,10 @@ type AppModules r =
      Final IO
    ]
 
-appToIo :: AppConfig -> _ -> Sem (AppModules r) a -> IO a
-appToIo cfg serverState app' = do
+appToIo :: AppConfig -> Sem (AppModules r) a -> IO a
+appToIo cfg app' = do
   clientLookup <- newTVarIO Map.empty
+  serverState <- newTVarIO newServerState
   let go :: Sem (AppModules r) a -> IO a
       go a =
         a
@@ -108,6 +109,7 @@ appToIo cfg serverState app' = do
           & httpLongPollingToIO (go . raise_)
           & envToIo
           & runInputSem ((atomically $ readTVar clientLookup) & stmToIo)
+          & runInputSem ((atomically $ readTVar serverState) & stmToIo)
           & runAtomicStateTVar clientLookup
           & runAtomicStateTVar serverState
           & interpretInterruptOnce
@@ -120,15 +122,14 @@ appToIo cfg serverState app' = do
 
 main :: AppConfig -> IO ()
 main cfg = do
-  state <- newTVarIO newServerState
-  app cfg state & appToIo cfg state
+  app cfg & appToIo cfg
 
-app :: (Members [Server, ClientChannel, TwitterStream, DotEnv, STM, Finally, WebSocket, Async, Interrupt] r) => AppConfig -> _ -> Sem r ()
-app _ state = do
+app :: (Members [Server, Input ServerState, AtomicState ServerState, ClientChannel, TwitterStream, DotEnv, STM, Finally, WebSocket, Async, Interrupt] r) => AppConfig -> Sem r ()
+app _ = do
   loadDotEnv
   sequenceConcurrently
-    [ killOnQuit "kill stream handler" $ filteredStreamBroadcast state,
-      killOnQuit "kill websocket server" $ S.start $ handleClient state
+    [ killOnQuit "kill stream handler" filteredStreamBroadcast,
+      killOnQuit "kill websocket server" $ S.start handleClient
     ]
   unregister "kill stream handler"
   unregister "kill websocket server"
