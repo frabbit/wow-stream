@@ -50,7 +50,6 @@ data ServerMessage
   | SMTweet Text
   | SMClientDisconnected Text
   | SMClientJoined Text
-  | SMSimpleText Text
   | SMClients [Text]
   deriving (Show, Eq, Typeable, Data)
 
@@ -64,7 +63,6 @@ instance Arbitrary ServerMessage where
       SMUnexpectedCommand <$> elements ["A", "B"],
       SMClientDisconnected <$> elements ["A", "B"],
       SMTalk <$> genUser <*> elements ["textA", "textB"],
-      SMSimpleText <$> elements ["a", "b"],
       SMClientJoined <$> elements ["A","B"],
       SMTweet <$> elements ["tweetA", "tweetB"],
       SMClients <$> do
@@ -93,7 +91,6 @@ toText = \case
   SMUnexpectedCommand cmd -> ":unexpectedCommand " <> cmd
   SMClientJoined client -> ":clientJoined " <> client
   SMClientDisconnected client -> ":clientDisconnected " <> client
-  SMSimpleText t -> t
 
 validCommandIdentifier :: Parser [Char]
 validCommandIdentifier = some (oneOf $ ['a'..'z'] <> ['A'..'Z'] <> ['0'..'9'] <> "_-")
@@ -104,11 +101,6 @@ acknowledgeParser = do
   char ' '
   name <- validCommandIdentifier
   pure $ SMAcknowledge $ Text.pack name
-
-simpleTextParser :: Parser ServerMessage
-simpleTextParser = do
-  msg <- many (noneOf ['\n'])
-  pure $ SMSimpleText $ Text.pack msg
 
 errorParser :: Parser Error
 errorParser = do
@@ -204,8 +196,7 @@ serverMessageParser = do
     talkParser,
     welcomeParser,
     clientJoinedParser,
-    tweetParser,
-    simpleTextParser
+    tweetParser
     ]
   eof
   pure command

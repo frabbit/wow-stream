@@ -9,7 +9,7 @@ import Data.Data (Data (toConstr), Proxy (Proxy), dataTypeConstrs)
 import qualified Data.Map as M
 import Data.Proxied (dataTypeOfProxied)
 import Test.QuickCheck (arbitrary, generate, Arbitrary)
-import Wow.Data.ServerMessage (ServerMessage (SMAcknowledge, SMSimpleText), parseServerMessage, toText)
+import Wow.Data.ServerMessage (ServerMessage (SMAcknowledge), parseServerMessage, toText)
 import Wow.TestPrelude
 
 shouldGenerateAllConstructorsOfADT :: forall x . (Arbitrary x, Data x) => Proxy x -> IO ()
@@ -35,9 +35,6 @@ spec = fdescribe "ServerMessage" $ do
     it "parse valid acknowledgements successfully" $ do
       let name = "Something"
       parseServerMessage (":acknowledge " <> name) `shouldBe` Right (SMAcknowledge name)
-    it "parse unknown commands as simpleText as fallback" $ do
-      let cmd = "whatever"
-      parseServerMessage cmd `shouldBe` Right (SMSimpleText cmd)
   describe "parse/toText should" $ do
     it "encode and decode server message to text and back" $
       property $ \msg ->
