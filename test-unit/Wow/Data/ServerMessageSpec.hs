@@ -9,7 +9,7 @@ import Data.Data (Data (toConstr), Proxy (Proxy), dataTypeConstrs)
 import qualified Data.Map as M
 import Data.Proxied (dataTypeOfProxied)
 import Test.QuickCheck (arbitrary, generate, Arbitrary)
-import Wow.Data.ServerMessage (ServerMessage (SMAcknowledge), parseServerMessage, toText)
+import Wow.Data.ServerMessage (ServerMessage (SMAcknowledge), parseServerMessage, toText, Error)
 import Wow.TestPrelude
 
 shouldGenerateAllConstructorsOfADT :: forall x . (Arbitrary x, Data x) => Proxy x -> IO ()
@@ -43,3 +43,6 @@ spec = fdescribe "ServerMessage" $ do
   describe "arbitrary" $ do
     it "should generate all constructors" $
       shouldGenerateAllConstructorsOfADT (Proxy::Proxy ServerMessage)
+  describe "Error.arbitrary" $ do
+    it "should generate all constructors" $
+      shouldGenerateAllConstructorsOfADT (Proxy::Proxy Error)
