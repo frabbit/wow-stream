@@ -39,9 +39,12 @@ instance Arbitrary Error where
       ErrNotAuthenticated
       ]
 
+type UserName = Text
+
 data ServerMessage
   = SMAcknowledge Text
   | SMError Error
+  | SMTalk UserName Text
   | SMUnexpectedCommand Text
   | SMWelcome [Text]
   | SMTweet Text
@@ -51,6 +54,8 @@ data ServerMessage
   | SMClients [Text]
   deriving (Show, Eq, Typeable, Data)
 
+
+
 instance Arbitrary ServerMessage where
   arbitrary = do
     oneof [
@@ -58,17 +63,19 @@ instance Arbitrary ServerMessage where
       SMError <$> arbitrary,
       SMUnexpectedCommand <$> elements ["A", "B"],
       SMClientDisconnected <$> elements ["A", "B"],
+      SMTalk <$> genUser <*> elements ["textA", "textB"],
       SMSimpleText <$> elements ["a", "b"],
       SMClientJoined <$> elements ["A","B"],
       SMTweet <$> elements ["tweetA", "tweetB"],
       SMClients <$> do
         k <- choose (0,4)
-        vectorOf k $ elements ["Pim", "Wim", "Jim", "Tim", "Jill", "Sarah"],
+        vectorOf k genUser,
       SMWelcome <$> do
         k <- choose (0,4)
-        vectorOf k $ elements ["Pim", "Wim", "Jim", "Tim", "Jill", "Sarah"]
+        vectorOf k genUser
       ]
-
+    where
+      genUser = elements ["Pim", "Wim", "Jim", "Tim", "Jill", "Sarah"]
 
 type Parser = Parsec Custom Text
 
@@ -81,6 +88,7 @@ toText = \case
   SMError e -> ":error " <> errorToText e
   SMClients cl -> ":clients " <> T.intercalate "," cl
   SMWelcome cl -> ":welcome " <> T.intercalate "," cl
+  SMTalk name msg -> ":talk " <> name <> " " <> msg
   SMTweet txt -> ":tweet " <> txt
   SMUnexpectedCommand cmd -> ":unexpectedCommand " <> cmd
   SMClientJoined client -> ":clientJoined " <> client
@@ -136,22 +144,34 @@ clientDisconnectedParser :: Parser ServerMessage
 clientDisconnectedParser = do
   try . chunk $ ":clientDisconnected"
   char ' '
-  name <- many (noneOf ['\n'])
-  pure $ SMClientDisconnected $ Text.pack name
+  name <- userNameParser
+  pure $ SMClientDisconnected name
 
 clientJoinedParser :: Parser ServerMessage
 clientJoinedParser = do
   try . chunk $ ":clientJoined"
   char ' '
-  name <- many (noneOf ['\n'])
-  pure $ SMClientJoined $ Text.pack name
+  name <- userNameParser
+  pure $ SMClientJoined name
 
-nameListParser :: Parser [String]
+userNameParser :: Parser UserName
+userNameParser = Text.pack <$> some (noneOf ['\n', ' ', ','])
+
+talkParser :: Parser ServerMessage
+talkParser = do
+  try . chunk $ ":talk"
+  char ' '
+  name <- userNameParser
+  char ' '
+  msg <- many (noneOf ['\n'])
+  pure $ SMTalk name (Text.pack msg)
+
+nameListParser :: Parser [Text]
 nameListParser = go []
   where
-  go :: [String] -> Parser [String]
+  go :: [Text] -> Parser [Text]
   go v = do
-    name <- optional $ some (noneOf ['\n', ','])
+    name <- optional userNameParser
     case name of
       Nothing -> pure $ reverse v
       Just n -> choice [
@@ -164,14 +184,14 @@ clientsParser = do
   try . chunk $ ":clients"
   char ' '
   names <- nameListParser
-  pure $ SMClients (fmap T.pack names)
+  pure $ SMClients names
 
 welcomeParser :: Parser ServerMessage
 welcomeParser = do
   try . chunk $ ":welcome"
   char ' '
   names <- nameListParser
-  pure $ SMWelcome (fmap T.pack names)
+  pure $ SMWelcome names
 
 serverMessageParser :: Parser ServerMessage
 serverMessageParser = do
@@ -181,6 +201,7 @@ serverMessageParser = do
     unexpectedCommandParser,
     clientDisconnectedParser,
     clientsParser,
+    talkParser,
     welcomeParser,
     clientJoinedParser,
     tweetParser,
