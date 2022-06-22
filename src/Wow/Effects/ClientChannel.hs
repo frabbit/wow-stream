@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant bracket" #-}
 {-# HLINT ignore "Move brackets to avoid $" #-}
+{-# HLINT ignore "Use newtype instead of data" #-}
 module Wow.Effects.ClientChannel where
 
 import Wow.Prelude
@@ -25,7 +26,7 @@ import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVEx
 type ClientLookup = M.Map ClientId Connection
 
 data ConnectionNotAvailableError = ConnectionNotAvailableError
-data InvalidCommandError = InvalidCommandError
+data InvalidCommandError = InvalidCommandError Text
 
 data ClientChannel (m::Type->Type) a where
   SendMessage :: ClientId -> ServerMessage -> ClientChannel m (VEither '[ConnectionNotAvailableError] ())
@@ -80,5 +81,5 @@ interpretClientChannel = reinterpretH $ \case
         pure t
 
 
-    either (const (throwVExceptT InvalidCommandError)) pure . parseCommand $ t
+    either (const (throwVExceptT $ InvalidCommandError t)) pure . parseCommand $ t
 

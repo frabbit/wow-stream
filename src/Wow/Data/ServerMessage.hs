@@ -37,6 +37,7 @@ data ServerMessage
   = SMAcknowledge Text
   | SMError Error
   | SMUnexpectedCommand Text
+  | SMWelcome [Text]
   | SMClientDisconnected Text
   | SMClientJoined Text
   | SMSimpleText Text
@@ -54,6 +55,9 @@ instance Arbitrary ServerMessage where
       SMClientJoined <$> elements ["A","B"],
       SMClients <$> do
         k <- choose (0,4)
+        vectorOf k $ elements ["Pim", "Wim", "Jim", "Tim", "Jill", "Sarah"],
+      SMWelcome <$> do
+        k <- choose (0,4)
         vectorOf k $ elements ["Pim", "Wim", "Jim", "Tim", "Jill", "Sarah"]
       ]
 
@@ -68,6 +72,7 @@ toText = \case
   SMAcknowledge n -> ":acknowledge " <> n
   SMError e -> ":error " <> errorToText e
   SMClients cl -> ":clients " <> T.intercalate "," cl
+  SMWelcome cl -> ":welcome " <> T.intercalate "," cl
   SMUnexpectedCommand cmd -> ":unexpectedCommand " <> cmd
   SMClientJoined client -> ":clientJoined " <> client
   SMClientDisconnected client -> ":clientDisconnected " <> client
@@ -143,6 +148,13 @@ clientsParser = do
   names <- nameListParser
   pure $ SMClients (fmap T.pack names)
 
+welcomeParser :: Parser ServerMessage
+welcomeParser = do
+  try . chunk $ ":welcome"
+  char ' '
+  names <- nameListParser
+  pure $ SMWelcome (fmap T.pack names)
+
 serverMessageParser :: Parser ServerMessage
 serverMessageParser = do
   command <- choice [
@@ -151,6 +163,7 @@ serverMessageParser = do
     unexpectedCommandParser,
     clientDisconnectedParser,
     clientsParser,
+    welcomeParser,
     clientJoinedParser,
     simpleTextParser
     ]

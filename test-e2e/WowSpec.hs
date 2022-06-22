@@ -23,7 +23,7 @@ import Wow.WowApp (defaultAppConfig, AppConfig, TwitterStreamSource (TSSFakeChan
 import Wow.Twitter.Types (StreamEntry(StreamEntry, tweet, matchingRules), Tweet (Tweet, text, tweetId))
 
 import Wow.Data.Command (Command (CmdGreeting, CmdFilter, CmdListen, CmdUnlisten, CmdClients), toText)
-import Wow.Data.ServerMessage (ServerMessage (SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined), parseServerMessage)
+import Wow.Data.ServerMessage (ServerMessage (SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMWelcome), parseServerMessage)
 
 type SendCommand = Maybe Command -> IO ()
 
@@ -130,7 +130,7 @@ sendAndWait = sendAndWaitWithWaitTime 400_000
 
 doLogin :: SendCommand -> TVar [ServerMessage] -> IO ()
 doLogin send msgs = do
-  sendAndWait send msgs (Just $ CmdGreeting "Pim") [SMSimpleText "Welcome! Users: Pim"]
+  sendAndWait send msgs (Just $ CmdGreeting "Pim") [SMWelcome ["Pim"]]
 
 sendStreamEntryAction :: AppConfig -> StreamEntry -> IO ()
 sendStreamEntryAction cfg entry =
@@ -192,12 +192,12 @@ spec = describe "WowApp" $ do
       sendAndWait send msgs Nothing []
   it "should allow Clients to login" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
-      sendAndWait send msgs (Just $ CmdGreeting "Pim") [SMSimpleText "Welcome! Users: Pim"]
+      sendAndWait send msgs (Just $ CmdGreeting "Pim") [SMWelcome ["Pim"]]
       sendAndWait send msgs Nothing []
   it "should allow multiple Clients to login" . withApp $ \cfg -> do
     withClients2 cfg.port ("Pim", "Wim") $ \(send1, send2, msgs) -> do
-      sendAndWait send1 msgs (Just $ CmdGreeting "Pim") [("Pim", SMSimpleText "Welcome! Users: Pim")]
-      sendAndWait send2 msgs (Just $ CmdGreeting "Wim") [("Wim", SMSimpleText "Welcome! Users: Wim, Pim"), ("Pim",SMClientJoined "Wim")]
+      sendAndWait send1 msgs (Just $ CmdGreeting "Pim") [("Pim", SMWelcome ["Pim"])]
+      sendAndWait send2 msgs (Just $ CmdGreeting "Wim") [("Wim", SMWelcome ["Wim", "Pim"]), ("Pim",SMClientJoined "Wim")]
       sendAndWait send1 msgs Nothing [("Wim",SMClientDisconnected "Pim")]
       sendAndWait send2 msgs Nothing []
 
