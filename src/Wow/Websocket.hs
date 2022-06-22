@@ -23,55 +23,9 @@ import Wow.Effects.ClientChannel (receiveMessage, ClientChannel, sendMessage, Co
 import Wow.Data.ServerMessage (ServerMessage(SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMUnexpectedCommand, SMWelcome, SMError, SMTalk), Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, liftVExceptT, runVExceptT)
 import Data.Function ((&))
+import Wow.Data.ServerState (ServerState, addClient, nameExists, removeClient, setClientListening, setClientFilter)
+import Wow.Data.Client (Client (..))
 
-data Client = Client {
-  name :: Text,
-  clientId:: ClientId,
-  listening :: Bool,
-  tweetFilter :: Maybe Text
-  }
-
-instance Show Client where
-  show c = "Client { name = " <> show c.name <> ", listening = " <> show c.listening <> ", tweetFilter = " <> show c.tweetFilter <> "  }"
-
-data ServerState = ServerState {
-  clients :: [Client]
-} deriving (Show)
-
-newServerState :: ServerState
-newServerState = ServerState {
-  clients = []
-}
-numClients :: ServerState -> Int
-numClients = length . (.clients)
-
-clientExists :: Client -> ServerState -> Bool
-clientExists c = any ((== c.name) . (.name)) . (.clients)
-
-nameExists :: Text -> ServerState -> Bool
-nameExists name = any ((== name) . (.name)) . (.clients)
-
-addClient :: Client -> ServerState -> ServerState
-addClient c s = s{clients = c:s.clients }
-
-removeClient :: Client -> ServerState -> ServerState
-removeClient client s = s{ clients = filter ((/= client.name) . (.name)) s.clients }
-
-updateClient :: (Client -> Client) -> ServerState -> ServerState
-updateClient update s = s{clients = fmap update s.clients}
-
-updateClientByName :: Client -> (Client -> Client) -> ServerState -> ServerState
-updateClientByName c update = updateClient (set c.name)
-  where
-    set name client
-      | client.name /= name = client
-      | otherwise = update client
-
-setClientListening :: Client -> Bool -> ServerState -> ServerState
-setClientListening c listening = updateClientByName c $ \cl -> cl{listening}
-
-setClientFilter :: Client -> Maybe Text -> ServerState -> ServerState
-setClientFilter c tweetFilter = updateClientByName c $ \cl -> cl{tweetFilter}
 
 broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 broadcastSilent message s = do

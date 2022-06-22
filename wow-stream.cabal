@@ -29,9 +29,11 @@ library
       Veins.Data.Variant.EitherUtil
       Veins.Data.VEither
       Veins.Prelude
+      Wow.Data.Client
       Wow.Data.ClientId
       Wow.Data.Command
       Wow.Data.ServerMessage
+      Wow.Data.ServerState
       Wow.Effects.ClientChannel
       Wow.Effects.DotEnv
       Wow.Effects.Env
@@ -208,9 +210,11 @@ test-suite wow-stream-test-all
       Veins.Data.Variant.EitherUtil
       Veins.Data.VEither
       Veins.Prelude
+      Wow.Data.Client
       Wow.Data.ClientId
       Wow.Data.Command
       Wow.Data.ServerMessage
+      Wow.Data.ServerState
       Wow.Effects.ClientChannel
       Wow.Effects.DotEnv
       Wow.Effects.Env

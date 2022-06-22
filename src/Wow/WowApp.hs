@@ -11,7 +11,7 @@ module Wow.WowApp where
 import Debug.Trace (traceShowM)
 import qualified Data.Text as T
 import Wow.Prelude
-import Wow.Websocket (newServerState, broadcastSilentWhen, ServerState, handleClient)
+import Wow.Websocket (broadcastSilentWhen, handleClient)
 import GHC.Conc (TVar, readTVar)
 import Wow.Twitter.Types (StreamEntry)
 
@@ -36,6 +36,7 @@ import Polysemy.AtomicState (AtomicState, runAtomicStateTVar)
 import qualified Data.Map.Strict as Map
 import Polysemy.Input (Input, runInputSem)
 import Wow.Data.ServerMessage (ServerMessage(SMTweet))
+import Wow.Data.ServerState (ServerState, newServerState)
 
 filteredStreamBroadcast :: forall r . (Members [ClientChannel, STM] r, Member TwitterStream r) => TVar ServerState -> Sem r ()
 filteredStreamBroadcast var = tSSampleStream broadcastC
