@@ -22,9 +22,8 @@ import Wow.Data.ServerState (ServerState, addClient, nameExists, removeClient, s
 import Wow.Data.Client (Client (..))
 import Polysemy.AtomicState (AtomicState, atomicState, atomicGet, atomicModify)
 
-broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
-broadcastSilent message s = do
-  forM_ s.clients $ \c -> sendMessage c.clientId message
+broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> Sem r ()
+broadcastSilent = broadcastSilentWhen (const True)
 
 broadcastSilentWhen :: (Members '[ClientChannel] r) => (Client -> Bool) -> ServerMessage -> ServerState -> Sem r ()
 broadcastSilentWhen f message s = do
@@ -34,7 +33,7 @@ broadcastSilentWhen f message s = do
       then sendMessage c.clientId (message) `catchVExceptT` (\(_::ConnectionNotAvailableError) -> pure ()) & evalVExceptT
       else pure ()
 
-broadcast :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+broadcast :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> Sem r ()
 broadcast message s = do
   traceShowM message
   broadcastSilent message s
@@ -73,20 +72,17 @@ greeting n clientId = VExceptT $ flip finally (disconnect client) $ runVExceptT 
 
         Just (s', s) -> do
           sendMessage clientId (SMWelcome (map (.name) s.clients))
-          broadcast (SMClientJoined $ client.name) s'
+          lift $ broadcast (SMClientJoined $ client.name) s'
           talk client
     client = Client { name = n, clientId, listening = False, tweetFilter = Nothing }
 
 disconnect :: (Members '[ClientChannel, AtomicState ServerState] r) => Client -> (Sem r) ()
-disconnect client = evalVExceptT $ do
+disconnect client = do
   traceShowM ("disconnect"::Text)
-  s <- lift $ atomicState @ServerState $ \s -> let sn = removeClient client s in (sn, sn)
+  s <- atomicState @ServerState $ \s -> let sn = removeClient client s in (sn, sn)
   traceShowM ("disconnect broadcast..."::Text)
   traceShowM s
   broadcast (SMClientDisconnected $ client.name) s
-  `catchVExceptT` (\(_::ConnectionNotAvailableError) -> do
-    traceShowM ("Conn not available"::Text)
-    pure ())
 
 talk :: (Members [ClientChannel, AtomicState ServerState] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 talk c = forever $ do
@@ -109,7 +105,7 @@ talk c = forever $ do
           lift $ atomicModify @ServerState $ setClientListening c False
           pure ()
     CmdTalk msg ->
-          (lift $ atomicGet @ServerState) >>= (liftVExceptT . broadcast (SMTalk c.name msg))
+          (lift $ atomicGet @ServerState) >>= (lift . broadcast (SMTalk c.name msg))
     CmdGreeting _ ->
           liftVExceptT $ sendMessage c.clientId (SMError ErrGreetingAlreadySucceded)
 
