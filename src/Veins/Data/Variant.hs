@@ -69,7 +69,7 @@ instance RemoveVariantCase 'False 'True a (b ': '[]) (b ': '[]) where
   removeCase = Left
 
 instance (RemoveVariant a es out1, LiftVariant out1 (b ': out1), InjectVariant b (b ': out1)) => RemoveVariantCase 'False 'False a (b ': es) (b ': out1) where
-  removeCase e@(VLeft v) = Left $ inject v
+  removeCase (VLeft v) = Left $ inject v
   removeCase (VRight r) = mapLeft liftVariant (remove @a r)
 
 class Project a es where

@@ -14,7 +14,7 @@ import Data.Text (Text)
 import Debug.Trace (traceShowM)
 import Control.Monad.IO.Class (liftIO)
 import Network.WebSockets (ConnectionException)
-import Control.Exception (catch, throw)
+import Control.Exception (catch)
 
 data WebSocket m a where
   WithPingThread :: WS.Connection -> Int -> m () -> m a -> WebSocket m a
@@ -40,13 +40,13 @@ webSocketToIO nt = interpretH $ \case
     let app' pc = void . nt . appF $ pc <$ is
     let
       app'' f = do
-        traceShowM "before app\n\n"
+        traceShowM ("before app\n\n"::Text)
         app' f
-        traceShowM "done ...\n\n"
+        traceShowM ("done ...\n\n"::Text)
     x <- liftIO $ do
-      traceShowM "run server"
+      traceShowM ("run server"::Text)
       WS.runServer address port app''
-      traceShowM "run server done..."
+      traceShowM ("run server done..."::Text)
 
     pureT x
   ReceiveData conn -> do

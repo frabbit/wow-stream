@@ -32,7 +32,7 @@ interpretServer port = reinterpretH $ \case
       conn <- acceptRequest pending
       let
         cleanup = do
-          traceShowM "Cleanup"
+          traceShowM ("Cleanup"::Text)
           pure ()
       withPingThread conn 30 cleanup $ do
         clientId <- embed newClientId

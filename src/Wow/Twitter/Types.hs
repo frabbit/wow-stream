@@ -7,7 +7,7 @@
 module Wow.Twitter.Types where
 
 import Configuration.Dotenv (defaultConfig, loadFile)
-import Control.Monad (void)
+import Control.Monad ( void )
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadPlus (mzero), MonadReader, ReaderT (ReaderT, runReaderT))
@@ -28,12 +28,11 @@ import Network.HTTP.Client.Conduit
     requestHeaders,
   )
 import Network.HTTP.Conduit (httpLbs)
-import Polysemy (Embed, Member, Sem)
+import Polysemy (Member, Sem)
 import System.Environment (getEnv, getEnvironment)
 import UnliftIO (MonadUnliftIO)
 import qualified Wow.Effects.Env as WE
 import Prelude hiding (filter)
-import Control.Monad (join)
 
 newtype Env = Env
   { manager :: Manager
@@ -204,5 +203,5 @@ showEnv :: IO ()
 showEnv = do
   print =<< getEnvironment
 
-loadDotEnv :: _ => _ ()
+loadDotEnv :: (MonadIO m) => m ()
 loadDotEnv = void $ loadFile defaultConfig

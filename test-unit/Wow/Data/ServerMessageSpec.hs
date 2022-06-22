@@ -4,16 +4,11 @@
 module Wow.Data.ServerMessageSpec where
 
 import Control.Monad (forM_)
-import Control.Monad.State (MonadState (get), MonadTrans (lift), StateT (runStateT), gets, modify, runState)
-import Data.Data (Data (dataTypeOf, toConstr), Proxy (Proxy), dataTypeConstrs)
-import Data.Either (isLeft)
+import Control.Monad.State (MonadTrans (lift), StateT (runStateT), modify)
+import Data.Data (Data (toConstr), Proxy (Proxy), dataTypeConstrs)
 import qualified Data.Map as M
 import Data.Proxied (dataTypeOfProxied)
-import Data.Proxy (Proxy)
-import qualified Data.Sequence as Map
-import Debug.Trace (traceShowM)
-import Test.QuickCheck (arbitrary, generate, sample, Arbitrary)
-import Wow.Data.Command (Command (..), parseCommand)
+import Test.QuickCheck (arbitrary, generate, Arbitrary)
 import Wow.Data.ServerMessage (ServerMessage (SMAcknowledge, SMSimpleText), parseServerMessage, toText)
 import Wow.TestPrelude
 

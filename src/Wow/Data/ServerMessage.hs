@@ -73,6 +73,7 @@ toText = \case
   SMClientDisconnected client -> ":clientDisconnected " <> client
   SMSimpleText t -> t
 
+validCommandIdentifier :: Parser [Char]
 validCommandIdentifier = some (oneOf $ ['a'..'z'] <> ['A'..'Z'] <> ['0'..'9'] <> "_-")
 
 acknowledgeParser :: Parser ServerMessage

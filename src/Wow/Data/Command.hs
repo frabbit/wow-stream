@@ -7,7 +7,7 @@ module Wow.Data.Command where
 import Control.Monad (void)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Text.Megaparsec (ParseErrorBundle, Parsec, ShowErrorComponent (showErrorComponent), choice, chunk, customFailure, eof, many, noneOf, oneOf, option, parse, some, try, (<?>), (<|>))
+import Text.Megaparsec (ParseErrorBundle, Parsec, ShowErrorComponent (showErrorComponent), choice, chunk, customFailure, eof, many, noneOf, oneOf, option, parse, some, try, (<|>))
 import Text.Megaparsec.Char (char)
 import Prelude
 

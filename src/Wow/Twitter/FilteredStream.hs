@@ -24,7 +24,7 @@ showEnv :: IO ()
 showEnv = do
   print =<< getEnvironment
 
-loadDotEnv :: _ => _ ()
+loadDotEnv :: (MonadIO m) => m ()
 loadDotEnv = void $ loadFile defaultConfig
 
 filteredStream :: forall r . ( Member Env r, Member HttpLongPolling r) =>(StreamEntry -> Sem r ()) -> Sem r ()

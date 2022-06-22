@@ -7,6 +7,8 @@ module Wow.Effects.HttpLongPolling where
 
 import Prelude
 
+import qualified Network.HTTP.Client as C
+
 import Network.HTTP.Client.Conduit
   ( Response (responseBody),
     method,
@@ -38,6 +40,7 @@ import Network.HTTP.Types (Method)
 import Data.CaseInsensitive (CI)
 import Control.Lens.Operators ((&))
 import Data.Aeson (decodeStrict)
+import Network.HTTP.Client (Manager)
 
 data Request = Request {
   url :: Text,
@@ -79,11 +82,11 @@ httpLongPollingToIO nt = interpretH $ \case
 
 execHttpLongPolling :: () => Request -> (BS.ByteString -> IO ()) -> IO ()
 execHttpLongPolling request cb = do
-  manager <- newManager :: IO _
+  manager <- newManager :: IO Manager
   let env = Env { manager }
   runAppT env $ do
-    req <- liftIO mkReq  :: AppT IO _
-    withResponse req handleResponse :: AppT IO _
+    req <- liftIO mkReq  :: AppT IO C.Request
+    withResponse req handleResponse :: AppT IO ()
   where
     mkReq = do
       initReq <- parseRequest $ T.unpack request.url
@@ -97,5 +100,5 @@ execHttpLongPolling request cb = do
     handleResponse :: (MonadIO w) => Response (ConduitT () BS.ByteString IO ()) -> AppT w ()
     handleResponse = liftIO . withBody . responseBody
       where
-        withBody :: ConduitT _ BS.ByteString IO () -> IO ()
+        withBody :: ConduitT () BS.ByteString IO () -> IO ()
         withBody body = runConduit ( body .| iterM cb .| sinkNull )

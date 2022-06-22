@@ -2,9 +2,8 @@ module Wow.Effects.Finally where
 
 import Prelude
 
-import Polysemy (Embed, Member, Sem, interpretH, runT, embed, makeSem, interpret, getInitialStateT)
+import Polysemy (Embed, Member, Sem, interpretH, runT, embed, makeSem)
 import qualified Control.Exception.Base as E
-import Debug.Trace (traceShowM)
 
 data Finally m a where
   Finally :: m a -> m b -> Finally m a

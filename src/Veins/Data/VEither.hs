@@ -3,7 +3,7 @@
 module Veins.Data.VEither where
 
 import Veins.Prelude
-import Veins.Data.Variant ( Variant, RemoveVariant, liftVariant, inject, InjectVariant )
+import Veins.Data.Variant ( Variant, RemoveVariant, liftVariant, inject, InjectVariant, LiftVariant )
 import Veins.Data.Variant.EitherUtil (catchEitherVariant)
 import Data.Either.Extra (mapLeft)
 
@@ -24,7 +24,7 @@ throwVEither = mkVLeft . inject
 mkVLeft :: Variant lefts -> VEither lefts right
 mkVLeft = VEither . Left
 
-liftVEither :: _ => VEither errs a -> VEither errout a
+liftVEither :: (LiftVariant errs errout) => VEither errs a -> VEither errout a
 liftVEither = VEither . mapLeft liftVariant . unVEither
 
 evalVEither :: VEither '[] a -> a

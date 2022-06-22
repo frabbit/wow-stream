@@ -2,6 +2,7 @@
 {-# HLINT ignore "Use newtype instead of data" #-}
 {-# HLINT ignore "Move brackets to avoid $" #-}
 {-# HLINT ignore "Use readTVarIO" #-}
+{-# HLINT ignore "Redundant bracket" #-}
 module Wow.Websocket where
 
 import Prelude
@@ -73,7 +74,7 @@ setClientListening c listening = updateClientByName c $ \cl -> cl{listening}
 setClientFilter :: Client -> Maybe Text -> ServerState -> ServerState
 setClientFilter c tweetFilter = updateClientByName c $ \cl -> cl{tweetFilter}
 
-broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> VExceptT _ (Sem r) ()
+broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 broadcastSilent message s = do
   forM_ s.clients $ \c -> sendMessage c.clientId message
 
@@ -85,7 +86,7 @@ broadcastSilentWhen f message s = do
       then sendMessage c.clientId (SMSimpleText message) `catchVExceptT` (\(_::ConnectionNotAvailableError) -> pure ()) & evalVExceptT
       else pure ()
 
-broadcast :: (_) => ServerMessage -> ServerState -> VExceptT _ (Sem r) ()
+broadcast :: (Member ClientChannel r) => ServerMessage -> ServerState -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 broadcast message s = do
   traceShowM message
   broadcastSilent message s
@@ -102,18 +103,22 @@ handleClient state clientId = evalVExceptT $ do
   case msg of
     CmdGreeting n -> liftVExceptT $ greeting n clientId state
     _ -> liftVExceptT $ sendMessage clientId (SMSimpleText "Unexpected command")
-  `catchVExceptT` (\(_::ConnectionNotAvailableError) -> do
-    traceShowM "Conn not available"
-    pure ())
-  `catchVExceptT` (\(_::InvalidCommandError) -> do
-    traceShowM "Invalid Command"
-    pure ())
+  `catchVExceptT` (
+    \(_::ConnectionNotAvailableError) -> do
+      traceShowM ("Conn not available"::Text)
+      pure ()
+    )
+  `catchVExceptT` (
+    \(_::InvalidCommandError) -> do
+      traceShowM ("Invalid Command"::Text)
+      pure ()
+    )
 
 
-greeting :: forall r . (Members '[Finally, STM, ClientChannel] r) => _ -> _ -> _ -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+greeting :: forall r . (Members '[Finally, STM, ClientChannel] r) => Text -> ClientId -> TVar ServerState -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 greeting n clientId state = VExceptT $ flip finally (disconnect state client) $ runVExceptT handleGreeting
   where
-    handleGreeting :: VExceptT _ (Sem r) ()
+    handleGreeting :: VExceptT '[ConnectionNotAvailableError] (Sem r) ()
     handleGreeting = do
       res <- lift $ atomically $ do
         s' <- readTVar state
@@ -131,7 +136,7 @@ greeting n clientId state = VExceptT $ flip finally (disconnect state client) $ 
           talk client state
     client = Client { name = n, clientId, listening = False, tweetFilter = Nothing }
 
-disconnect :: (Members '[ClientChannel, STM] r) => _ -> _ -> (Sem r) ()
+disconnect :: (Members '[ClientChannel, STM] r) => TVar ServerState -> Client -> (Sem r) ()
 disconnect state client = evalVExceptT $ do
   traceShowM ("disconnect"::Text)
   s <- lift $ atomically $ do
@@ -141,7 +146,7 @@ disconnect state client = evalVExceptT $ do
   traceShowM s
   broadcast (SMClientDisconnected $ client.name) s
   `catchVExceptT` (\(_::ConnectionNotAvailableError) -> do
-    traceShowM "Conn not available"
+    traceShowM ("Conn not available"::Text)
     pure ())
 
 talk :: (Members [ClientChannel, STM] r) => Client -> TVar ServerState -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()

@@ -59,7 +59,7 @@ interpretClientChannel = reinterpretH $ \case
     res <- lift $ do
       receiveData conn'
     let
-      removeClient :: (Members '[Input ClientLookup] r, _) => VExceptT _ (Sem (WebSocket ': r)) ()
+      removeClient :: VExceptT errs (Sem (WebSocket ': r)) ()
       removeClient = do
         lift $ atomicModify' @ClientLookup (M.delete clientId)
 
@@ -75,7 +75,7 @@ interpretClientChannel = reinterpretH $ \case
         throw e
       Left e -> do
         traceShowM ("error occured" <> show e)
-        throw e :: _
+        throw e
       Right t ->
         pure t
 

@@ -3,8 +3,8 @@
 module Wow.Effects.STM where
 
 import qualified GHC.Conc as C
-import Prelude (IO, ($), (.), (=<<))
-import Polysemy (makeSem, Member, Embed, Sem, interpretH, embed, pureT, interpret)
+import Wow.Prelude
+import Polysemy (makeSem, Member, Embed, Sem, embed, interpret)
 import Data.Kind (Type)
 
 data STM (m::Type -> Type) a where
