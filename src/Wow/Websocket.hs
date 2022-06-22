@@ -20,7 +20,7 @@ import Wow.Effects.STM (STM, atomically)
 import Wow.Data.Command (Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
 import Wow.Data.ClientId (ClientId)
 import Wow.Effects.ClientChannel (receiveMessage, ClientChannel, sendMessage, ConnectionNotAvailableError, InvalidCommandError (InvalidCommandError))
-import Wow.Data.ServerMessage (ServerMessage(SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMUnexpectedCommand, SMWelcome, SMError), Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
+import Wow.Data.ServerMessage (ServerMessage(SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMUnexpectedCommand, SMWelcome, SMError, SMTalk), Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, liftVExceptT, runVExceptT)
 import Data.Function ((&))
 
@@ -169,7 +169,7 @@ talk c state = forever $ do
           lift $ atomically $ modifyTVar state $ setClientListening c False
           pure ()
     CmdTalk msg ->
-          (lift $ atomically $ readTVar state) >>= (liftVExceptT . broadcast (SMSimpleText $ c.name `mappend` ": " `mappend` msg))
+          (lift $ atomically $ readTVar state) >>= (liftVExceptT . broadcast (SMTalk c.name msg))
     CmdGreeting _ ->
           liftVExceptT $ sendMessage c.clientId (SMError ErrGreetingAlreadySucceded)
 

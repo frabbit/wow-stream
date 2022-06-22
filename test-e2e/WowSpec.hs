@@ -20,8 +20,8 @@ import GHC.Num (integerToNatural)
 import Wow.WowApp (defaultAppConfig, AppConfig, TwitterStreamSource (TSSFakeChannel))
 import Wow.Twitter.Types (StreamEntry(StreamEntry, tweet, matchingRules), Tweet (Tweet, text, tweetId))
 
-import Wow.Data.Command (Command (CmdGreeting, CmdFilter, CmdListen, CmdUnlisten, CmdClients), toText)
-import Wow.Data.ServerMessage (ServerMessage (SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMWelcome, SMTweet, SMError), parseServerMessage, Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
+import Wow.Data.Command (Command (CmdGreeting, CmdFilter, CmdListen, CmdUnlisten, CmdClients, CmdTalk), toText)
+import Wow.Data.ServerMessage (ServerMessage (SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMWelcome, SMTweet, SMError, SMTalk), parseServerMessage, Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
 import Test.Hspec (expectationFailure)
 
 type SendCommand = Maybe Command -> IO ()
@@ -206,6 +206,14 @@ spec = describe "WowApp" $ do
     withClients2 cfg.port ("Pim", "Wim") $ \(send1, send2, msgs) -> do
       sendAndWait send1 msgs (Just $ CmdGreeting "Pim") [("Pim", SMWelcome ["Pim"])]
       sendAndWait send2 msgs (Just $ CmdGreeting "Wim") [("Wim", SMWelcome ["Wim", "Pim"]), ("Pim",SMClientJoined "Wim")]
+      sendAndWait send1 msgs Nothing [("Wim",SMClientDisconnected "Pim")]
+      sendAndWait send2 msgs Nothing []
+  it "should allow multiple Clients to talk to each other" . withApp $ \cfg -> do
+    withClients2 cfg.port ("Pim", "Wim") $ \(send1, send2, msgs) -> do
+      sendAndWait send1 msgs (Just $ CmdGreeting "Pim") [("Pim", SMWelcome ["Pim"])]
+      sendAndWait send2 msgs (Just $ CmdGreeting "Wim") [("Wim", SMWelcome ["Wim", "Pim"]), ("Pim", SMClientJoined "Wim")]
+      sendAndWait send1 msgs (Just $ CmdTalk "Hi Wim") [("Wim", SMTalk "Pim" "Hi Wim")]
+      sendAndWait send2 msgs (Just $ CmdTalk "Hello there") [("Pim", SMTalk "Wim" "Hello there")]
       sendAndWait send1 msgs Nothing [("Wim",SMClientDisconnected "Pim")]
       sendAndWait send2 msgs Nothing []
   it "should not allow the same name twice" . withApp $ \cfg -> do
