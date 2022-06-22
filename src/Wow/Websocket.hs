@@ -8,7 +8,6 @@ module Wow.Websocket where
 import Prelude
 import qualified Network.WebSockets as WS
 import Data.Text (Text)
-import qualified Data.Text as T
 import GHC.Conc (readTVar, TVar)
 import UnliftIO (modifyTVar, MonadUnliftIO, toIO)
 import Control.Monad (forM_)
@@ -78,12 +77,12 @@ broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState 
 broadcastSilent message s = do
   forM_ s.clients $ \c -> sendMessage c.clientId message
 
-broadcastSilentWhen :: (Members '[ClientChannel] r) => (Client -> Bool) -> Text -> ServerState -> Sem r ()
+broadcastSilentWhen :: (Members '[ClientChannel] r) => (Client -> Bool) -> ServerMessage -> ServerState -> Sem r ()
 broadcastSilentWhen f message s = do
   forM_ s.clients sendIf
   where
     sendIf c = if f c
-      then sendMessage c.clientId (SMSimpleText message) `catchVExceptT` (\(_::ConnectionNotAvailableError) -> pure ()) & evalVExceptT
+      then sendMessage c.clientId (message) `catchVExceptT` (\(_::ConnectionNotAvailableError) -> pure ()) & evalVExceptT
       else pure ()
 
 broadcast :: (Member ClientChannel r) => ServerMessage -> ServerState -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()

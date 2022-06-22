@@ -35,6 +35,7 @@ import Wow.Effects.Server (Server, interpretServer, ClientLookup)
 import Polysemy.AtomicState (AtomicState, runAtomicStateTVar)
 import qualified Data.Map.Strict as Map
 import Polysemy.Input (Input, runInputSem)
+import Wow.Data.ServerMessage (ServerMessage(SMTweet))
 
 filteredStreamBroadcast :: forall r . (Members [ClientChannel, STM] r, Member TwitterStream r) => TVar ServerState -> Sem r ()
 filteredStreamBroadcast var = tSSampleStream broadcastC
@@ -45,7 +46,7 @@ filteredStreamBroadcast var = tSSampleStream broadcastC
       traceShowM s
       let when client = client.listening && toBool (fmap (`T.isInfixOf` s.tweet.text) client.tweetFilter)
       serverState <- atomically $ readTVar var
-      broadcastSilentWhen when s.tweet.text serverState
+      broadcastSilentWhen when (SMTweet s.tweet.text) serverState
       pure ()
     where
       toBool (Just x) = x

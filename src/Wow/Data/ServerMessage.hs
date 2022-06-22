@@ -38,6 +38,7 @@ data ServerMessage
   | SMError Error
   | SMUnexpectedCommand Text
   | SMWelcome [Text]
+  | SMTweet Text
   | SMClientDisconnected Text
   | SMClientJoined Text
   | SMSimpleText Text
@@ -53,6 +54,7 @@ instance Arbitrary ServerMessage where
       SMClientDisconnected <$> elements ["A", "B"],
       SMSimpleText <$> elements ["a", "b"],
       SMClientJoined <$> elements ["A","B"],
+      SMTweet <$> elements ["tweetA", "tweetB"],
       SMClients <$> do
         k <- choose (0,4)
         vectorOf k $ elements ["Pim", "Wim", "Jim", "Tim", "Jill", "Sarah"],
@@ -73,6 +75,7 @@ toText = \case
   SMError e -> ":error " <> errorToText e
   SMClients cl -> ":clients " <> T.intercalate "," cl
   SMWelcome cl -> ":welcome " <> T.intercalate "," cl
+  SMTweet txt -> ":tweet " <> txt
   SMUnexpectedCommand cmd -> ":unexpectedCommand " <> cmd
   SMClientJoined client -> ":clientJoined " <> client
   SMClientDisconnected client -> ":clientDisconnected " <> client
@@ -113,6 +116,13 @@ unexpectedCommandParser = do
   char ' '
   name <- many (noneOf ['\n'])
   pure $ SMUnexpectedCommand $ Text.pack name
+
+tweetParser :: Parser ServerMessage
+tweetParser = do
+  try . chunk $ ":tweet"
+  char ' '
+  txt <- many (noneOf ['\n'])
+  pure $ SMTweet $ Text.pack txt
 
 clientDisconnectedParser :: Parser ServerMessage
 clientDisconnectedParser = do
@@ -165,6 +175,7 @@ serverMessageParser = do
     clientsParser,
     welcomeParser,
     clientJoinedParser,
+    tweetParser,
     simpleTextParser
     ]
   eof

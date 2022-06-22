@@ -23,7 +23,7 @@ import Wow.WowApp (defaultAppConfig, AppConfig, TwitterStreamSource (TSSFakeChan
 import Wow.Twitter.Types (StreamEntry(StreamEntry, tweet, matchingRules), Tweet (Tweet, text, tweetId))
 
 import Wow.Data.Command (Command (CmdGreeting, CmdFilter, CmdListen, CmdUnlisten, CmdClients), toText)
-import Wow.Data.ServerMessage (ServerMessage (SMSimpleText, SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMWelcome), parseServerMessage)
+import Wow.Data.ServerMessage (ServerMessage (SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMWelcome, SMTweet), parseServerMessage)
 
 type SendCommand = Maybe Command -> IO ()
 
@@ -161,7 +161,7 @@ spec = describe "WowApp" $ do
       doLogin send msgs
       sendAndWait send msgs (Just CmdListen) [SMAcknowledge "listen"]
       let action = sendStreamEntryAction cfg (StreamEntry{tweet = Tweet { text = "This is a tweet", tweetId = "1" }, matchingRules = Nothing})
-      actionAndWait action msgs [SMSimpleText "This is a tweet"]
+      actionAndWait action msgs [SMTweet "This is a tweet"]
       sendAndWait send msgs Nothing []
   it "should filter events that don't match the given filter" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
@@ -181,7 +181,7 @@ spec = describe "WowApp" $ do
       actionAndWait action1 msgs []
       (`shouldBe` []) <$> readTVarIO msgs
       let action2 = sendStreamEntryAction cfg (StreamEntry{tweet = Tweet { text = "has abc", tweetId = "1" }, matchingRules = Nothing})
-      actionAndWait action2 msgs [SMSimpleText "has abc"]
+      actionAndWait action2 msgs [SMTweet "has abc"]
       (`shouldBe` []) <$> readTVarIO msgs
       sendAndWait send msgs Nothing []
   it "should acknowledge unlisten command" . withApp $ \cfg -> do
