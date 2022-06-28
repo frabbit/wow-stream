@@ -5,7 +5,7 @@
 {-# HLINT ignore "Redundant bracket" #-}
 module Wow.Websocket where
 
-import Prelude
+import Prelude hiding (filter)
 import Data.Text (Text)
 import Control.Monad (forM_)
 import Control.Monad.Cont (forever, MonadTrans (lift))
@@ -15,13 +15,13 @@ import Wow.Effects.Finally (finally, Finally)
 import Wow.Data.Command (Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
 import Wow.Data.ClientId (ClientId)
 import Wow.Effects.ClientChannel (receiveMessage, ClientChannel, sendMessage, ConnectionNotAvailableError, InvalidCommandError (InvalidCommandError))
-import Wow.Data.ServerMessage (ServerMessage(SMAcknowledge, SMClientDisconnected, SMClients, SMClientJoined, SMUnexpectedCommand, SMWelcome, SMError, SMTalk), Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
+import Wow.Data.ServerMessage (ServerMessage(SMClientDisconnected, SMClients, SMClientJoined, SMUnexpectedCommand, SMWelcome, SMError, SMTalk), Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, liftVExceptT, runVExceptT)
 import Data.Function ((&))
-import Wow.Data.ServerState (ServerState, addClient, nameExists, removeClient, setClientListening, setClientFilter)
+import Wow.Data.ServerState (ServerState, addClient, nameExists, removeClient)
 import Wow.Data.Client (Client (..))
-import Polysemy.AtomicState (AtomicState, atomicState, atomicGet, atomicModify)
-import Wow.Effects.ServerApi (ServerApi, listen, unlisten)
+import Polysemy.AtomicState (AtomicState, atomicState, atomicGet)
+import Wow.Effects.ServerApi (ServerApi, listen, unlisten, filter)
 
 broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> Sem r ()
 broadcastSilent = broadcastSilentWhen (const True)
@@ -96,9 +96,7 @@ talk c = forever $ do
     CmdListen -> do
           liftVExceptT . listen $ c
     CmdFilter f -> do
-          liftVExceptT $ sendMessage c.clientId (SMAcknowledge "filter")
-          lift $ atomicModify @ServerState $ setClientFilter c (Just f)
-          pure ()
+          liftVExceptT $ filter f c
     CmdUnlisten -> do
           liftVExceptT . unlisten $ c
     CmdTalk msg ->

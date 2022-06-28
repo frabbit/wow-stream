@@ -20,6 +20,7 @@ type ServerApi :: (Type -> Type) -> Type -> Type
 data ServerApi m a where
   Listen :: Client -> ServerApi m (VEither '[ConnectionNotAvailableError] ())
   Unlisten :: Client -> ServerApi m (VEither '[ConnectionNotAvailableError] ())
+  Filter :: Text -> Client -> ServerApi m (VEither '[ConnectionNotAvailableError] ())
 
 listen :: (Member ServerApi r) => Client ->  VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 listen client = VExceptT $ send (Listen client)
@@ -27,12 +28,17 @@ listen client = VExceptT $ send (Listen client)
 unlisten :: (Member ServerApi r) => Client ->  VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 unlisten client = VExceptT $ send (Unlisten client)
 
+filter :: (Member ServerApi r) => Text -> Client ->  VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+filter f client = VExceptT $ send (Filter f client)
+
 interpretServerApi :: (Members [ClientChannel, AtomicState ServerState] r ) => Sem (ServerApi ': r) a -> Sem r a
 interpretServerApi = interpretH $ \case
   Listen client -> do
     liftT . runVExceptT $ listenImpl client
   Unlisten client -> do
     liftT . runVExceptT $ unlistenImpl client
+  Filter f client -> do
+    liftT . runVExceptT $ filterImpl f client
 
 listenImpl :: (Members [ClientChannel, AtomicState ServerState] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 listenImpl c = do
@@ -44,4 +50,10 @@ unlistenImpl :: (Members [ClientChannel, AtomicState ServerState] r) => Client -
 unlistenImpl c = do
   liftVExceptT $ sendMessage c.clientId (SMAcknowledge "unlisten")
   lift $ atomicModify @ServerState $ setClientListening c False
+  pure ()
+
+filterImpl :: (Members [ClientChannel, AtomicState ServerState] r) => Text -> Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+filterImpl f c = do
+  liftVExceptT $ sendMessage c.clientId (SMAcknowledge "filter")
+  lift $ atomicModify @ServerState $ setClientFilter c (Just f)
   pure ()
