@@ -32,11 +32,9 @@ parserStart :: Parser Command
 parserStart = CmdStart <$> port
   where
     port = option auto (long "port" <> short 'p' <> metavar "PORT" <> value defaultPort <> help "write to File")
-    --arg = argument str (metavar "TARGET...")
 
 parserOpts :: Parser Command
 parserOpts = subparser (
-  --command "basic" (info parserBasic (progDesc "A basic command") ) <>
   command "start" (info parserStart (progDesc "start the server") )
   )
 
