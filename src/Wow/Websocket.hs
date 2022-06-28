@@ -15,13 +15,13 @@ import Wow.Effects.Finally (finally, Finally)
 import Wow.Data.Command (Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
 import Wow.Data.ClientId (ClientId)
 import Wow.Effects.ClientChannel (receiveMessage, ClientChannel, sendMessage, ConnectionNotAvailableError, InvalidCommandError (InvalidCommandError))
-import Wow.Data.ServerMessage (ServerMessage(SMClientDisconnected, SMClients, SMClientJoined, SMUnexpectedCommand, SMWelcome, SMError, SMTalk), Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
+import Wow.Data.ServerMessage (ServerMessage(SMClientDisconnected, SMClientJoined, SMUnexpectedCommand, SMWelcome, SMError, SMTalk), Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, liftVExceptT, runVExceptT)
 import Data.Function ((&))
 import Wow.Data.ServerState (ServerState, addClient, nameExists, removeClient)
 import Wow.Data.Client (Client (..))
 import Polysemy.AtomicState (AtomicState, atomicState, atomicGet)
-import Wow.Effects.ServerApi (ServerApi, listen, unlisten, filter)
+import Wow.Effects.ServerApi (ServerApi, listen, unlisten, filter, listClients)
 
 broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> Sem r ()
 broadcastSilent = broadcastSilentWhen (const True)
@@ -90,9 +90,7 @@ talk c = forever $ do
   cmd <- receiveMessage c.clientId
   case cmd of
     CmdClients -> do
-          s <- lift $ atomicGet @ServerState
-          liftVExceptT $ sendMessage c.clientId (SMClients $ map (.name) s.clients)
-          pure ()
+          liftVExceptT . listClients $ c
     CmdListen -> do
           liftVExceptT . listen $ c
     CmdFilter f -> do

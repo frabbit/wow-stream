@@ -7,10 +7,10 @@ import Polysemy (Sem, interpretH, Members, Member)
 import Polysemy.Internal (send)
 import Data.Kind (Type)
 import Wow.Effects.ClientChannel (ClientChannel, sendMessage, ConnectionNotAvailableError)
-import Polysemy.AtomicState (AtomicState, atomicModify)
+import Polysemy.AtomicState (AtomicState, atomicModify, atomicGet)
 import Wow.Data.ServerState (ServerState, setClientListening, setClientFilter)
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), runVExceptT, liftVExceptT)
-import Wow.Data.ServerMessage (ServerMessage(SMAcknowledge))
+import Wow.Data.ServerMessage (ServerMessage(SMAcknowledge, SMClients))
 import Control.Monad.Trans (lift)
 import Wow.Data.Client (Client)
 import Polysemy.Internal.Tactics (liftT)
@@ -21,6 +21,10 @@ data ServerApi m a where
   Listen :: Client -> ServerApi m (VEither '[ConnectionNotAvailableError] ())
   Unlisten :: Client -> ServerApi m (VEither '[ConnectionNotAvailableError] ())
   Filter :: Text -> Client -> ServerApi m (VEither '[ConnectionNotAvailableError] ())
+  ListClients :: Client -> ServerApi m (VEither '[ConnectionNotAvailableError] ())
+
+listClients :: (Member ServerApi r) => Client ->  VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+listClients client = VExceptT $ send (ListClients client)
 
 listen :: (Member ServerApi r) => Client ->  VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 listen client = VExceptT $ send (Listen client)
@@ -39,11 +43,19 @@ interpretServerApi = interpretH $ \case
     liftT . runVExceptT $ unlistenImpl client
   Filter f client -> do
     liftT . runVExceptT $ filterImpl f client
+  ListClients client -> do
+    liftT . runVExceptT $ listClientsImpl client
 
 listenImpl :: (Members [ClientChannel, AtomicState ServerState] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 listenImpl c = do
   sendMessage c.clientId (SMAcknowledge "listen")
   lift $ atomicModify @ServerState (setClientListening c True)
+  pure ()
+
+listClientsImpl :: (Members [ClientChannel, AtomicState ServerState] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+listClientsImpl c = do
+  s <- lift $ atomicGet @ServerState
+  liftVExceptT $ sendMessage c.clientId (SMClients $ map (.name) s.clients)
   pure ()
 
 unlistenImpl :: (Members [ClientChannel, AtomicState ServerState] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
