@@ -9,15 +9,16 @@ module Wow.WebSocketSpec where
 
 import Control.Arrow ((>>>))
 import Data.List.Extra (snoc)
-import Polysemy (Member, Members, Sem, interpretH, run)
+import Polysemy (Member, Members, Sem, interpretH, run, raiseUnder)
 import Polysemy.AtomicState (AtomicState, atomicStateToState)
+import Polysemy.Input (Input, input, runInputList)
 import Polysemy.Internal.Tactics (liftT)
 import Polysemy.State (State, modify, put, runState)
 import Veins.Control.Monad.VExceptT (runVExceptT)
 import Veins.Data.VEither (VEither, throwVEither)
 import Wow.Data.Client (Client, initClient)
 import Wow.Data.ClientId (ClientId (..))
-import Wow.Data.Command (Command (CmdFilter, CmdListen, CmdUnlisten, CmdTalk, CmdClients))
+import Wow.Data.Command (Command (CmdClients, CmdFilter, CmdListen, CmdTalk, CmdUnlisten))
 import Wow.Data.ServerMessage (ServerMessage)
 import Wow.Data.ServerState
   ( ServerState (..),
@@ -28,7 +29,6 @@ import Wow.Effects.ClientChannel (ClientChannel (..), ConnectionNotAvailableErro
 import Wow.Effects.ServerApi (ServerApi (..))
 import Wow.TestPrelude
 import Wow.Websocket (clientLoop)
-import Polysemy.Input (Input, input, runInputList)
 
 sampleClient :: Client
 sampleClient = initClient "Joe" (ClientId "abc")
@@ -45,6 +45,11 @@ interpretClientChannel = interpretH $ \case
         pure x
       Nothing ->
         error "no result provided"
+
+interpretClientChannelList :: forall r a .
+  [VEither '[ConnectionNotAvailableError, InvalidCommandError] Command] ->
+  Members '[State [ServerMessage]] r => Sem (ClientChannel ': r) a -> Sem r a
+interpretClientChannelList commands x = interpretClientChannel (raiseUnder x) & runInputList commands
 
 interpretServerApi :: Member (State [String]) r => Sem (ServerApi ': r) a -> Sem r a
 interpretServerApi = interpretH $ \x -> case x of
@@ -73,7 +78,6 @@ interpretApp ::
       AtomicState ServerState,
       State ServerState,
       State [Wow.Data.ServerMessage.ServerMessage],
-      Input (Maybe (VEither '[ConnectionNotAvailableError, InvalidCommandError] Command)),
       State [String]
     ]
     a ->
@@ -83,11 +87,10 @@ interpretApp commands x = Result {apiCalls, messages, serverState, result = v}
     (apiCalls, (messages, (serverState, v))) = interp' x
     interp' =
       interpretServerApi
-        >>> interpretClientChannel
+        >>> interpretClientChannelList (commands <> [throwVEither ConnectionNotAvailableError])
         >>> atomicStateToState
         >>> runState (addClient sampleClient newServerState)
         >>> runState []
-        >>> runInputList (commands <> [throwVEither ConnectionNotAvailableError])
         >>> runState []
         >>> run
 
