@@ -57,7 +57,7 @@ greeting n clientId = VExceptT $ flip finally (disconnect client) $ runVExceptT 
         Just (s', s) -> do
           sendMessage clientId (SMWelcome (map (.name) s.clients))
           lift $ broadcast (SMClientJoined $ client.name) s'
-          talkClient client
+          clientLoop client
     client = Client { name = n, clientId, listening = False, tweetFilter = Nothing }
 
 disconnect :: (Members '[ClientChannel, AtomicState ServerState] r) => Client -> (Sem r) ()
@@ -68,8 +68,8 @@ disconnect client = do
   traceShowM s
   broadcast (SMClientDisconnected $ client.name) s
 
-talkClient :: (Members [ClientChannel, ServerApi] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
-talkClient c = forever $ do
+clientLoop :: (Members [ClientChannel, ServerApi] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+clientLoop c = forever $ do
   cmd <- receiveMessage c.clientId
   case cmd of
     CmdClients -> do
