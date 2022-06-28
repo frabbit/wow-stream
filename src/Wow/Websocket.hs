@@ -21,7 +21,7 @@ import Data.Function ((&))
 import Wow.Data.ServerState (ServerState, addClient, nameExists, removeClient, setClientListening, setClientFilter)
 import Wow.Data.Client (Client (..))
 import Polysemy.AtomicState (AtomicState, atomicState, atomicGet, atomicModify)
-import Wow.Effects.ServerApi (ServerApi, listen)
+import Wow.Effects.ServerApi (ServerApi, listen, unlisten)
 
 broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> Sem r ()
 broadcastSilent = broadcastSilentWhen (const True)
@@ -94,15 +94,13 @@ talk c = forever $ do
           liftVExceptT $ sendMessage c.clientId (SMClients $ map (.name) s.clients)
           pure ()
     CmdListen -> do
-          liftVExceptT $ listen c
+          liftVExceptT . listen $ c
     CmdFilter f -> do
           liftVExceptT $ sendMessage c.clientId (SMAcknowledge "filter")
           lift $ atomicModify @ServerState $ setClientFilter c (Just f)
           pure ()
     CmdUnlisten -> do
-          liftVExceptT $ sendMessage c.clientId (SMAcknowledge "unlisten")
-          lift $ atomicModify @ServerState $ setClientListening c False
-          pure ()
+          liftVExceptT . unlisten $ c
     CmdTalk msg ->
           (lift $ atomicGet @ServerState) >>= (lift . broadcast (SMTalk c.name msg))
     CmdGreeting _ ->
