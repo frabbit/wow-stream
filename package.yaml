@@ -145,3 +145,30 @@ tests:
     - test-e2e
     ghc-options: *test-ghc-options
     dependencies: *test-ghc-dependencies
+
+  wow-stream-test-unit:
+    main:                UnitSpec.hs
+    source-dirs:
+    - test-common
+    - test-unit
+    dependencies: *test-ghc-dependencies
+    ghc-options: *test-ghc-options
+    when:
+      condition: true
+      ghc-options:
+      - -main-is UnitSpec.main
+      dependencies:
+      - wow-stream
+  wow-stream-test-e2e:
+    main:                E2ESpec.hs
+    source-dirs:
+    - test-common
+    - test-e2e
+    dependencies: *test-ghc-dependencies
+    ghc-options: *test-ghc-options
+    when:
+      condition: true
+      ghc-options:
+      - -main-is E2ESpec.main
+      dependencies:
+      - wow-stream

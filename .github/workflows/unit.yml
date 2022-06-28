@@ -1,0 +1,35 @@
+# Run unit tests on any branch/fork pull request
+on:
+  - pull_request
+  - push
+
+name: Unit tests
+
+jobs:
+  unit:
+    name: unit tests - stack / ghc ${{ matrix.ghc }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        stack: ["2.7.5"]
+        ghc: ["9.0.2"]
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: haskell/actions/setup@v1.2
+      name: Setup Haskell Stack
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        stack-version: ${{ matrix.stack }}
+    - uses: actions/cache@v2
+      name: Cache ~/.stack
+      with:
+        path: |
+          ~/.stack
+          .stack-work
+        key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.ghc }}-stack
+    - run: stack build --only-dependencies
+    - run: make test-unit
+    - run: make test-e2e

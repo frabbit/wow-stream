@@ -326,3 +326,181 @@ test-suite wow-stream-test-all
     , uuid
     , websockets
   default-language: Haskell2010
+
+test-suite wow-stream-test-e2e
+  type: exitcode-stdio-1.0
+  main-is: E2ESpec.hs
+  other-modules:
+      Veins.TestPrelude
+      Wow.TestPrelude
+      WowSpec
+      Paths_wow_stream
+  hs-source-dirs:
+      test-common
+      test-e2e
+  default-extensions:
+      TypeOperators
+      InstanceSigs
+      KindSignatures
+      FlexibleContexts
+      FlexibleInstances
+      LambdaCase
+      NamedFieldPuns
+      OverloadedStrings
+      TypeApplications
+      RankNTypes
+      DataKinds
+      ScopedTypeVariables
+      MultiParamTypeClasses
+      GeneralizedNewtypeDeriving
+      FunctionalDependencies
+      UndecidableInstances
+      DuplicateRecordFields
+      TypeSynonymInstances
+      TypeFamilies
+      QualifiedDo
+      TemplateHaskell
+      GADTs
+      ConstraintKinds
+      PatternSynonyms
+      PartialTypeSignatures
+      ViewPatterns
+      NoImplicitPrelude
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-simplifiable-class-constraints -Wno-unused-do-bind -Wmissing-methods -Werror=missing-fields -fplugin=RecordDotPreprocessor -threaded -rtsopts -with-rtsopts=-A128m -with-rtsopts=-N2m
+  build-depends:
+      QuickCheck
+    , aeson
+    , async
+    , base >=4.7 && <5
+    , bytestring
+    , case-insensitive
+    , conduit
+    , containers
+    , dotenv
+    , exceptions
+    , extra
+    , haskeline
+    , hspec
+    , hspec-expectations-lifted
+    , http-client
+    , http-client-tls
+    , http-conduit
+    , http-types
+    , lens
+    , megaparsec
+    , monad-control
+    , mtl
+    , network
+    , optparse-applicative
+    , polysemy
+    , polysemy-conc
+    , proxied
+    , quickcheck-instances
+    , random
+    , record-dot-preprocessor >=0.2.14
+    , record-hasfield
+    , stm
+    , testcontainers >=0.3.0.1
+    , text
+    , transformers
+    , unix
+    , unliftio
+    , uuid
+    , websockets
+  if true
+    ghc-options: -main-is E2ESpec.main
+    build-depends:
+        wow-stream
+  default-language: Haskell2010
+
+test-suite wow-stream-test-unit
+  type: exitcode-stdio-1.0
+  main-is: UnitSpec.hs
+  other-modules:
+      Veins.TestPrelude
+      Wow.TestPrelude
+      Veins.Control.Monad.VExceptTSpec
+      Veins.Data.Variant.EitherUtilsSpec
+      Veins.Data.VariantSpec
+      Wow.Data.CommandSpec
+      Wow.Data.ServerMessageSpec
+      Wow.Effects.ServerApiSpec
+      Wow.WebSocketSpec
+      Paths_wow_stream
+  hs-source-dirs:
+      test-common
+      test-unit
+  default-extensions:
+      TypeOperators
+      InstanceSigs
+      KindSignatures
+      FlexibleContexts
+      FlexibleInstances
+      LambdaCase
+      NamedFieldPuns
+      OverloadedStrings
+      TypeApplications
+      RankNTypes
+      DataKinds
+      ScopedTypeVariables
+      MultiParamTypeClasses
+      GeneralizedNewtypeDeriving
+      FunctionalDependencies
+      UndecidableInstances
+      DuplicateRecordFields
+      TypeSynonymInstances
+      TypeFamilies
+      QualifiedDo
+      TemplateHaskell
+      GADTs
+      ConstraintKinds
+      PatternSynonyms
+      PartialTypeSignatures
+      ViewPatterns
+      NoImplicitPrelude
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-simplifiable-class-constraints -Wno-unused-do-bind -Wmissing-methods -Werror=missing-fields -fplugin=RecordDotPreprocessor -threaded -rtsopts -with-rtsopts=-A128m -with-rtsopts=-N2m
+  build-depends:
+      QuickCheck
+    , aeson
+    , async
+    , base >=4.7 && <5
+    , bytestring
+    , case-insensitive
+    , conduit
+    , containers
+    , dotenv
+    , exceptions
+    , extra
+    , haskeline
+    , hspec
+    , hspec-expectations-lifted
+    , http-client
+    , http-client-tls
+    , http-conduit
+    , http-types
+    , lens
+    , megaparsec
+    , monad-control
+    , mtl
+    , network
+    , optparse-applicative
+    , polysemy
+    , polysemy-conc
+    , proxied
+    , quickcheck-instances
+    , random
+    , record-dot-preprocessor >=0.2.14
+    , record-hasfield
+    , stm
+    , testcontainers >=0.3.0.1
+    , text
+    , transformers
+    , unix
+    , unliftio
+    , uuid
+    , websockets
+  if true
+    ghc-options: -main-is UnitSpec.main
+    build-depends:
+        wow-stream
+  default-language: Haskell2010

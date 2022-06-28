@@ -31,6 +31,7 @@ test-e2e-ghcid:
 		wow-stream:wow-stream-test-all"
 	reset && clear
 
+.PHONY: test-compile-ghcid
 test-compile-ghcid:
 	reset && clear
 	ghcid --restart=wow-stream.cabal --reload=.reload-ghcid \
@@ -38,3 +39,11 @@ test-compile-ghcid:
 		$(ghci-options) \
 		wow-stream:wow-stream-test-all"
 	reset && clear
+
+.PHONY: test-unit
+test-unit:
+	stack test --ghc-options "-O0 -j4 +RTS -A128m -n2m -RTS" wow-stream:wow-stream-test-unit
+
+.PHONY: test-e2e
+test-e2e:
+	stack test --ghc-options "-O0 -j4 +RTS -A128m -n2m -RTS" wow-stream:wow-stream-test-e2e
