@@ -37,7 +37,7 @@ import Wow.Broadcasting (broadcastSilentWhen)
 import Wow.Effects.ServerApi (ServerApi, interpretServerApi)
 import Wow.Websocket (handleClient)
 
-filteredStreamBroadcast :: forall r. (Members '[ClientChannel, STM, Input ServerState, AtomicState ServerState, TwitterStream] r) => Sem r ()
+filteredStreamBroadcast :: forall r. (Members '[ClientChannel, Input ServerState, TwitterStream] r) => Sem r ()
 filteredStreamBroadcast = listenToStream broadcastC
   where
     broadcastC :: StreamEntry -> Sem r ()
