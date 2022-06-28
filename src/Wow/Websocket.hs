@@ -21,6 +21,7 @@ import Data.Function ((&))
 import Wow.Data.ServerState (ServerState, addClient, nameExists, removeClient, setClientListening, setClientFilter)
 import Wow.Data.Client (Client (..))
 import Polysemy.AtomicState (AtomicState, atomicState, atomicGet, atomicModify)
+import Wow.Effects.ServerApi (ServerApi, listen)
 
 broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> Sem r ()
 broadcastSilent = broadcastSilentWhen (const True)
@@ -38,7 +39,7 @@ broadcast message s = do
   traceShowM message
   broadcastSilent message s
 
-handleClient :: forall r. (Members '[ClientChannel, Finally, AtomicState ServerState ] r) => ClientId -> (Sem r) ()
+handleClient :: forall r. (Members '[ClientChannel, Finally, AtomicState ServerState, ServerApi ] r) => ClientId -> (Sem r) ()
 handleClient clientId = evalVExceptT $ do
   msg <- receiveMessage clientId
   case msg of
@@ -56,7 +57,7 @@ handleClient clientId = evalVExceptT $ do
     )
 
 
-greeting :: forall r . (Members '[Finally, ClientChannel, AtomicState ServerState] r) => Text -> ClientId -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+greeting :: forall r . (Members '[Finally, ClientChannel, AtomicState ServerState, ServerApi] r) => Text -> ClientId -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 greeting n clientId = VExceptT $ flip finally (disconnect client) $ runVExceptT handleGreeting
   where
     handleGreeting :: VExceptT '[ConnectionNotAvailableError] (Sem r) ()
@@ -84,7 +85,7 @@ disconnect client = do
   traceShowM s
   broadcast (SMClientDisconnected $ client.name) s
 
-talk :: (Members [ClientChannel, AtomicState ServerState] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+talk :: (Members [ClientChannel, AtomicState ServerState, ServerApi] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 talk c = forever $ do
   cmd <- receiveMessage c.clientId
   case cmd of
@@ -93,9 +94,7 @@ talk c = forever $ do
           liftVExceptT $ sendMessage c.clientId (SMClients $ map (.name) s.clients)
           pure ()
     CmdListen -> do
-          liftVExceptT $ sendMessage c.clientId (SMAcknowledge "listen")
-          lift $ atomicModify @ServerState (setClientListening c True)
-          pure ()
+          liftVExceptT $ listen c
     CmdFilter f -> do
           liftVExceptT $ sendMessage c.clientId (SMAcknowledge "filter")
           lift $ atomicModify @ServerState $ setClientFilter c (Just f)

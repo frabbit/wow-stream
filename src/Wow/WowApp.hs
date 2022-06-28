@@ -34,6 +34,7 @@ import Wow.Effects.WebSocket (WebSocket, webSocketToIO)
 import Wow.Prelude
 import Wow.Twitter.Types (StreamEntry)
 import Wow.Websocket (broadcastSilentWhen, handleClient)
+import Wow.Effects.ServerApi (ServerApi, interpretServerApi)
 
 filteredStreamBroadcast :: forall r. (Members '[ClientChannel, STM, Input ServerState, AtomicState ServerState, TwitterStream] r) => Sem r ()
 filteredStreamBroadcast = tSSampleStream broadcastC
@@ -67,7 +68,8 @@ defaultAppConfig =
     }
 
 type AppModules r =
-  '[ DotEnv,
+  '[ ServerApi,
+     DotEnv,
      STM,
      Server,
      ClientChannel,
@@ -95,6 +97,7 @@ appToIo cfg app' = do
   let go :: Sem (AppModules r) a -> IO a
       go a =
         a
+          & interpretServerApi
           & dotEnvToIo
           & stmToIo
           & interpretServer cfg.port
@@ -124,7 +127,7 @@ main :: AppConfig -> IO ()
 main cfg = do
   app cfg & appToIo cfg
 
-app :: (Members [Server, Input ServerState, AtomicState ServerState, ClientChannel, TwitterStream, DotEnv, STM, Finally, WebSocket, Async, Interrupt] r) => AppConfig -> Sem r ()
+app :: (Members [ServerApi, Server, Input ServerState, AtomicState ServerState, ClientChannel, TwitterStream, DotEnv, STM, Finally, WebSocket, Async, Interrupt] r) => AppConfig -> Sem r ()
 app _ = do
   loadDotEnv
   sequenceConcurrently
