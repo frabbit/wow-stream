@@ -29,6 +29,7 @@ library
       Veins.Data.Variant.EitherUtil
       Veins.Data.VEither
       Veins.Prelude
+      Wow.Broadcasting
       Wow.Data.Client
       Wow.Data.ClientId
       Wow.Data.Command
@@ -211,6 +212,7 @@ test-suite wow-stream-test-all
       Veins.Data.Variant.EitherUtil
       Veins.Data.VEither
       Veins.Prelude
+      Wow.Broadcasting
       Wow.Data.Client
       Wow.Data.ClientId
       Wow.Data.Command

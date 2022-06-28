@@ -33,8 +33,9 @@ import Wow.Effects.TwitterStream (TwitterStream, interpretTwitterStream, interpr
 import Wow.Effects.WebSocket (WebSocket, webSocketToIO)
 import Wow.Prelude
 import Wow.Twitter.Types (StreamEntry)
-import Wow.Websocket (broadcastSilentWhen, handleClient)
+import Wow.Broadcasting (broadcastSilentWhen)
 import Wow.Effects.ServerApi (ServerApi, interpretServerApi)
+import Wow.Websocket (handleClient)
 
 filteredStreamBroadcast :: forall r. (Members '[ClientChannel, STM, Input ServerState, AtomicState ServerState, TwitterStream] r) => Sem r ()
 filteredStreamBroadcast = tSSampleStream broadcastC

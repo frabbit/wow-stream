@@ -7,7 +7,6 @@ module Wow.Websocket where
 
 import Prelude hiding (filter)
 import Data.Text (Text)
-import Control.Monad (forM_)
 import Control.Monad.Cont (forever, MonadTrans (lift))
 import Debug.Trace (traceShowM)
 import Polysemy (Sem, Members)
@@ -15,29 +14,13 @@ import Wow.Effects.Finally (finally, Finally)
 import Wow.Data.Command (Command (CmdGreeting, CmdClients, CmdListen, CmdFilter, CmdTalk, CmdUnlisten))
 import Wow.Data.ClientId (ClientId)
 import Wow.Effects.ClientChannel (receiveMessage, ClientChannel, sendMessage, ConnectionNotAvailableError, InvalidCommandError (InvalidCommandError))
-import Wow.Data.ServerMessage (ServerMessage(SMClientDisconnected, SMClientJoined, SMUnexpectedCommand, SMWelcome, SMError, SMTalk), Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
+import Wow.Data.ServerMessage (ServerMessage(SMClientDisconnected, SMClientJoined, SMUnexpectedCommand, SMWelcome, SMError), Error (ErrUsernameExists, ErrGreetingAlreadySucceded, ErrNotAuthenticated))
 import Veins.Control.Monad.VExceptT (VExceptT (VExceptT), catchVExceptT, evalVExceptT, liftVExceptT, runVExceptT)
-import Data.Function ((&))
 import Wow.Data.ServerState (ServerState, addClient, nameExists, removeClient)
 import Wow.Data.Client (Client (..))
-import Polysemy.AtomicState (AtomicState, atomicState, atomicGet)
-import Wow.Effects.ServerApi (ServerApi, listen, unlisten, filter, listClients)
-
-broadcastSilent :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> Sem r ()
-broadcastSilent = broadcastSilentWhen (const True)
-
-broadcastSilentWhen :: (Members '[ClientChannel] r) => (Client -> Bool) -> ServerMessage -> ServerState -> Sem r ()
-broadcastSilentWhen f message s = do
-  forM_ s.clients sendIf
-  where
-    sendIf c = if f c
-      then sendMessage c.clientId (message) `catchVExceptT` (\(_::ConnectionNotAvailableError) -> pure ()) & evalVExceptT
-      else pure ()
-
-broadcast :: (Members '[ClientChannel] r) => ServerMessage -> ServerState -> Sem r ()
-broadcast message s = do
-  traceShowM message
-  broadcastSilent message s
+import Polysemy.AtomicState (AtomicState, atomicState)
+import Wow.Effects.ServerApi (ServerApi, listen, unlisten, filter, listClients, talk)
+import Wow.Broadcasting (broadcast)
 
 handleClient :: forall r. (Members '[ClientChannel, Finally, AtomicState ServerState, ServerApi ] r) => ClientId -> (Sem r) ()
 handleClient clientId = evalVExceptT $ do
@@ -74,7 +57,7 @@ greeting n clientId = VExceptT $ flip finally (disconnect client) $ runVExceptT 
         Just (s', s) -> do
           sendMessage clientId (SMWelcome (map (.name) s.clients))
           lift $ broadcast (SMClientJoined $ client.name) s'
-          talk client
+          talkClient client
     client = Client { name = n, clientId, listening = False, tweetFilter = Nothing }
 
 disconnect :: (Members '[ClientChannel, AtomicState ServerState] r) => Client -> (Sem r) ()
@@ -85,8 +68,8 @@ disconnect client = do
   traceShowM s
   broadcast (SMClientDisconnected $ client.name) s
 
-talk :: (Members [ClientChannel, AtomicState ServerState, ServerApi] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
-talk c = forever $ do
+talkClient :: (Members [ClientChannel, ServerApi] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
+talkClient c = forever $ do
   cmd <- receiveMessage c.clientId
   case cmd of
     CmdClients -> do
@@ -98,7 +81,7 @@ talk c = forever $ do
     CmdUnlisten -> do
           liftVExceptT . unlisten $ c
     CmdTalk msg ->
-          (lift $ atomicGet @ServerState) >>= (lift . broadcast (SMTalk c.name msg))
+          liftVExceptT $ talk msg c
     CmdGreeting _ ->
           liftVExceptT $ sendMessage c.clientId (SMError ErrGreetingAlreadySucceded)
 
