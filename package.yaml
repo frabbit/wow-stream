@@ -1,10 +1,10 @@
 name:                wow-stream
 version:             0.1.0.0
-github:              "githubuser/wow-stream"
+github:              "frabbit/wow-stream"
 license:             BSD3
-author:              "Author name here"
+author:              "Heinz Hoelzer"
 maintainer:          "example@example.com"
-copyright:           "2022 Author name here"
+copyright:           "2022 Heinz Hoelzer"
 
 extra-source-files:
 - README.md
