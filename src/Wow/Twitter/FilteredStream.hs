@@ -1,11 +1,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Redundant bracket" #-}
-{-# HLINT ignore "Use newtype instead of data" #-}
-{-# HLINT ignore "Redundant lambda" #-}
 module Wow.Twitter.FilteredStream where
 
 import Control.Monad.IO.Class (MonadIO)
-import UnliftIO (MonadUnliftIO)
 import Prelude hiding (filter)
 import Data.Aeson (decodeStrict)
 
@@ -17,8 +13,6 @@ import Polysemy (Sem, Member)
 import Wow.Effects.HttpLongPolling (HttpLongPolling, Request (Request), url, headers)
 import Wow.Effects.Env (Env)
 import qualified Wow.Effects.HttpLongPolling as HLP
-
-newtype MyIO a = MyIO {unMyIO :: IO a} deriving (Monad, Functor, MonadIO, Applicative, MonadUnliftIO)
 
 showEnv :: IO ()
 showEnv = do
