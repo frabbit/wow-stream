@@ -246,6 +246,7 @@ test-suite wow-stream-test-all
       Wow.Data.CommandSpec
       Wow.Data.ServerMessageSpec
       Wow.Effects.ServerApiSpec
+      Wow.OptionsSpec
       Wow.WebSocketSpec
       E2ESpec
       WowSpec
@@ -425,6 +426,7 @@ test-suite wow-stream-test-unit
       Wow.Data.CommandSpec
       Wow.Data.ServerMessageSpec
       Wow.Effects.ServerApiSpec
+      Wow.OptionsSpec
       Wow.WebSocketSpec
       Paths_wow_stream
   hs-source-dirs:

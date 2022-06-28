@@ -1,6 +1,11 @@
 module Main where
 
-import Prelude
+import Wow.Prelude
+import qualified Wow.WowApp as WowApp
+import Wow.Options (parseCommand)
 
 main :: IO ()
-main = putStrLn "Hello World"
+main = do
+  cmd <- parseCommand
+  let cfg = WowApp.defaultAppConfig{port = cmd.port}
+  WowApp.main cfg
