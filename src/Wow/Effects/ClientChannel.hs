@@ -6,7 +6,7 @@ module Wow.Effects.ClientChannel where
 
 import Wow.Prelude
 import Wow.Data.ServerMessage (ServerMessage, toText)
-import Polysemy (Sem, reinterpretH, Member, Members)
+import Polysemy (Sem, reinterpretH, Member, Members, pureT, interpretH)
 import Wow.Effects.WebSocket (WebSocket, sendTextData, receiveData)
 import Data.Kind (Type)
 import Polysemy.Internal.Tactics (liftT)

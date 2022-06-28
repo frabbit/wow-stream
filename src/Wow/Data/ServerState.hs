@@ -8,7 +8,7 @@ import Wow.Data.Client (Client)
 
 data ServerState = ServerState {
   clients :: [Client]
-} deriving (Show)
+} deriving (Show, Eq, Ord)
 
 newServerState :: ServerState
 newServerState = ServerState {

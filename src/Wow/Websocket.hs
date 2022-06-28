@@ -39,7 +39,6 @@ handleClient clientId = evalVExceptT $ do
       pure ()
     )
 
-
 greeting :: forall r . (Members '[Finally, ClientChannel, AtomicState ServerState, ServerApi] r) => Text -> ClientId -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 greeting n clientId = VExceptT $ flip finally (disconnect client) $ runVExceptT handleGreeting
   where

@@ -30,7 +30,7 @@ shouldGenerateAllConstructorsOfADT _ = do
   M.elems s `shouldSatisfy` all (> 0)
 
 spec :: Spec
-spec = fdescribe "ServerMessage" $ do
+spec = describe "ServerMessage" $ do
   describe "parseServerMessage should" $ do
     it "parse valid acknowledgements successfully" $ do
       let name = "Something"
