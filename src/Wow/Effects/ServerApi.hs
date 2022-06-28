@@ -2,6 +2,7 @@
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Move brackets to avoid $" #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module Wow.Effects.ServerApi where
 
 import Wow.Prelude
@@ -26,6 +27,9 @@ data ServerApi m a where
   Filter :: Text -> Client -> ServerApi m (VEither '[ConnectionNotAvailableError] ())
   ListClients :: Client -> ServerApi m (VEither '[ConnectionNotAvailableError] ())
   Talk  :: Text -> Client -> ServerApi m (VEither '[ConnectionNotAvailableError] ())
+
+deriving instance Show (ServerApi m a)
+
 
 listClients :: (Member ServerApi r) => Client ->  VExceptT '[ConnectionNotAvailableError] (Sem r) ()
 listClients client = VExceptT $ send (ListClients client)

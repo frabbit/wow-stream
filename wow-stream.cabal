@@ -246,6 +246,7 @@ test-suite wow-stream-test-all
       Wow.Data.CommandSpec
       Wow.Data.ServerMessageSpec
       Wow.Effects.ServerApiSpec
+      Wow.WebSocketSpec
       E2ESpec
       WowSpec
       Paths_wow_stream

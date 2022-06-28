@@ -7,7 +7,7 @@ module Wow.Websocket where
 
 import Prelude hiding (filter)
 import Data.Text (Text)
-import Control.Monad.Cont (forever, MonadTrans (lift))
+import Control.Monad.Cont (MonadTrans (lift))
 import Debug.Trace (traceShowM)
 import Polysemy (Sem, Members)
 import Wow.Effects.Finally (finally, Finally)
@@ -68,20 +68,23 @@ disconnect client = do
   broadcast (SMClientDisconnected $ client.name) s
 
 clientLoop :: (Members [ClientChannel, ServerApi] r) => Client -> VExceptT '[ConnectionNotAvailableError] (Sem r) ()
-clientLoop c = forever $ do
-  cmd <- receiveMessage c.clientId
-  case cmd of
-    CmdClients -> do
-          liftVExceptT . listClients $ c
-    CmdListen -> do
-          liftVExceptT . listen $ c
-    CmdFilter f -> do
-          liftVExceptT $ filter f c
-    CmdUnlisten -> do
-          liftVExceptT . unlisten $ c
-    CmdTalk msg ->
-          liftVExceptT $ talk msg c
-    CmdGreeting _ ->
-          liftVExceptT $ sendMessage c.clientId (SMError ErrGreetingAlreadySucceded)
+clientLoop c = do
+  (do
+    cmd <- receiveMessage c.clientId
+    case cmd of
+      CmdClients -> do
+            liftVExceptT . listClients $ c
+      CmdListen -> do
+            liftVExceptT . listen $ c
+      CmdFilter f -> do
+            liftVExceptT $ filter f c
+      CmdUnlisten -> do
+            liftVExceptT . unlisten $ c
+      CmdTalk msg ->
+            liftVExceptT $ talk msg c
+      CmdGreeting _ ->
+            liftVExceptT $ sendMessage c.clientId (SMError ErrGreetingAlreadySucceded)
 
-  `catchVExceptT` (\(InvalidCommandError t) -> sendMessage c.clientId (SMUnexpectedCommand t))
+    `catchVExceptT` (\(InvalidCommandError t) -> sendMessage c.clientId (SMUnexpectedCommand t))
+    )
+  clientLoop c
