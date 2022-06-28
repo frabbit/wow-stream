@@ -245,6 +245,7 @@ test-suite wow-stream-test-all
       Veins.Data.VariantSpec
       Wow.Data.CommandSpec
       Wow.Data.ServerMessageSpec
+      Wow.Effects.FinallySpec
       Wow.Effects.ServerApiSpec
       Wow.OptionsSpec
       Wow.WebSocketSpec
@@ -425,6 +426,7 @@ test-suite wow-stream-test-unit
       Veins.Data.VariantSpec
       Wow.Data.CommandSpec
       Wow.Data.ServerMessageSpec
+      Wow.Effects.FinallySpec
       Wow.Effects.ServerApiSpec
       Wow.OptionsSpec
       Wow.WebSocketSpec

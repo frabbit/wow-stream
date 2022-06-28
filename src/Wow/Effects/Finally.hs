@@ -2,7 +2,7 @@ module Wow.Effects.Finally where
 
 import Prelude
 
-import Polysemy (Embed, Member, Sem, interpretH, runT, embed, makeSem)
+import Polysemy (Embed, Member, Sem, interpretH, runT, embed, makeSem, runTSimple)
 import qualified Control.Exception.Base as E
 
 data Finally m a where
@@ -17,3 +17,10 @@ finallyToIo nt = interpretH $ \case
     b' <- runT b
     let res = E.finally (nt a') (nt b')
     embed res
+
+finallyPure :: forall r a . Sem (Finally ': r) a -> Sem r a
+finallyPure = interpretH $ \case
+  Finally a b -> do
+    a' <- runTSimple a
+    runTSimple b
+    pure a'
