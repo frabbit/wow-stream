@@ -29,7 +29,7 @@ import Wow.Effects.HttpLongPolling (HttpLongPolling, httpLongPollingToIO)
 import Wow.Effects.STM (STM, atomically, stmToIo)
 import Wow.Effects.Server (ClientLookup, Server, interpretServer)
 import qualified Wow.Effects.Server as S
-import Wow.Effects.TwitterStream (TwitterStream, interpretTwitterStream, interpretTwitterStreamByTChan, tSSampleStream)
+import Wow.Effects.TwitterStream (TwitterStream, interpretTwitterStream, interpretTwitterStreamByTChan, listenToStream)
 import Wow.Effects.WebSocket (WebSocket, webSocketToIO)
 import Wow.Prelude
 import Wow.Twitter.Types (StreamEntry)
@@ -38,7 +38,7 @@ import Wow.Effects.ServerApi (ServerApi, interpretServerApi)
 import Wow.Websocket (handleClient)
 
 filteredStreamBroadcast :: forall r. (Members '[ClientChannel, STM, Input ServerState, AtomicState ServerState, TwitterStream] r) => Sem r ()
-filteredStreamBroadcast = tSSampleStream broadcastC
+filteredStreamBroadcast = listenToStream broadcastC
   where
     broadcastC :: StreamEntry -> Sem r ()
     broadcastC s = do

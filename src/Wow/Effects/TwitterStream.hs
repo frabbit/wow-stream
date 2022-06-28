@@ -17,14 +17,14 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.STM (atomically)
 
 data TwitterStream m a where
-  TSSampleStream :: (StreamEntry -> m ()) -> TwitterStream m ()
+  ListenToStream :: (StreamEntry -> m ()) -> TwitterStream m ()
 
 makeSem ''TwitterStream
 
 interpretTwitterStream :: forall r a1 .
   Sem (TwitterStream ': r) a1 -> Sem (Env ': HttpLongPolling ': r) a1
 interpretTwitterStream = reinterpret2H $ \case
-  TSSampleStream cb -> do
+  ListenToStream cb -> do
     cb' <- bindT cb
     is <- getInitialStateT
     let
@@ -37,7 +37,7 @@ interpretTwitterStream = reinterpret2H $ \case
 interpretTwitterStreamByTChan :: forall r a1 . (Member (Embed IO) r) =>
   TChan StreamEntry -> Sem (TwitterStream ': r) a1 -> Sem r a1
 interpretTwitterStreamByTChan channel = interpretH $ \case
-  TSSampleStream cb -> do
+  ListenToStream cb -> do
     cb' <- bindT cb
     is <- getInitialStateT
     let
