@@ -32,6 +32,8 @@ jobs:
 #        key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
 #        restore-keys: |
 #          ${{ runner.os }}-${{ matrix.ghc }}-stack
+    - name: Permissions bug workaround
+      run: "chown -R $(id -un):$(id -gn) ~"
     - run: stack build
     - run: make test-unit
     - run: make test-e2e
