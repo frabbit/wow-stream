@@ -40,3 +40,30 @@ jobs:
     # diable e2e tests for now, it seems that the ports opened by there server thread are
     # accessible in github actions. We could try to run them in a container.
     #- run: make test-e2e
+  test-e2e:
+    name: unit tests - stack / ghc ${{ matrix.ghc }}
+    runs-on: ubuntu-20.04
+    container:
+      image: haskell:9.0.2-buster
+    strategy:
+      matrix:
+        stack: ["2.7.5"]
+        ghc: ["9.0.2"]
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: haskell/actions/setup@v1.2
+      name: Setup Haskell Stack
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        stack-version: ${{ matrix.stack }}
+    - uses: actions/cache@v2
+      name: Cache ~/.stack
+      with:
+        path: |
+          ~/.stack
+          .stack-work
+        key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.ghc }}-stack
+    - run: stack --allow-different-user test --ghc-options "-O0 -j4 +RTS -A128m -n2m -RTS" wow-stream:wow-stream-test-e2e
