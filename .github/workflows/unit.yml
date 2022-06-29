@@ -16,24 +16,22 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-# - uses: haskell/actions/setup@v1.2
-#   name: Setup Haskell Stack
-#   with:
-#     ghc-version: ${{ matrix.ghc }}
-#     stack-version: ${{ matrix.stack }}
-#    - uses: actions/cache@v2
-#      name: Cache ~/.stack
-#      with:
-#        path: |
-#          ~/.stack
-#          .stack-work
-#        key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
-#        restore-keys: |
-#          ${{ runner.os }}-${{ matrix.ghc }}-stack
-    - run: docker -v
-    - run: docker build --no-cache .
-    - run: make build-run-docker
+    - uses: haskell/actions/setup@v1.2
+      name: Setup Haskell Stack
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        stack-version: ${{ matrix.stack }}
+    - uses: actions/cache@v2
+      name: Cache ~/.stack
+      with:
+        path: |
+          ~/.stack
+          .stack-work
+        key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.ghc }}-stack
     - run: env
-    - run: stack --allow-different-user build
+    - run: stack build old-time
+    - run: stack build
     - run: make test-unit
     - run: make test-e2e
