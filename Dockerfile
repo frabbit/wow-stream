@@ -13,7 +13,7 @@ COPY test-unit /app/test-unit
 COPY test-e2e /app/test-e2e
 COPY package.yaml /app/
 COPY wow-stream.cabal /app/
-
+RUN env
 RUN stack build
 COPY Makefile /app/
 CMD make test-unit

@@ -31,7 +31,7 @@ jobs:
 #        restore-keys: |
 #          ${{ runner.os }}-${{ matrix.ghc }}-stack
     - run: docker -v
-    - run: docker build .
+    - run: docker build --no-cache .
     - run: make build-run-docker
     - run: env
     - run: stack --allow-different-user build
