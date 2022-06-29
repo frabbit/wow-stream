@@ -41,6 +41,7 @@ jobs:
     # accessible in github actions. We could try to run them in a container.
     #- run: make test-e2e
   test-e2e:
+    needs: unit
     name: unit tests - stack / ghc ${{ matrix.ghc }}
     runs-on: ubuntu-20.04
     container:
