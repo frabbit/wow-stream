@@ -9,6 +9,8 @@ jobs:
   unit:
     name: unit tests - stack / ghc ${{ matrix.ghc }}
     runs-on: ubuntu-20.04
+    container:
+      image: haskell:9.0.2-buster
     strategy:
       matrix:
         stack: ["2.7.5"]
