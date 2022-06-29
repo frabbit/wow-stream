@@ -67,4 +67,6 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
         restore-keys: |
           ${{ runner.os }}-${{ matrix.ghc }}-stack
+    - name: Permissions bug workaround
+      run: "chown -R $(id -un):$(id -gn) ~"
     - run: stack --allow-different-user test --ghc-options "-O0 -j4 +RTS -A128m -n2m -RTS" wow-stream:wow-stream-test-e2e
