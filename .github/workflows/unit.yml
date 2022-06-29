@@ -34,6 +34,7 @@ jobs:
 #          ${{ runner.os }}-${{ matrix.ghc }}-stack
     - name: Permissions bug workaround
       run: "chown -R $(id -un):$(id -gn) ~"
+    - run: env
     - run: stack --allow-different-user build
     - run: make test-unit
     - run: make test-e2e
