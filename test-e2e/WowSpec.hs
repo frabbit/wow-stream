@@ -72,13 +72,13 @@ withApp action = do
         traceShowM port
         let config = defaultAppConfig{port, twitterStreamSource }
         a <- async $ WA.main config
-        threadDelay 50_000 -- dirty, improve this by checking if the endpoint is available
+        threadDelay 80_000 -- dirty, improve this by checking if the endpoint is available
         pure (a, config)
     )
     (uninterruptibleCancel . fst)
     (\(_,config) -> do
       x <- action config
-      threadDelay 50_000
+      threadDelay 80_000
       pure x
     )
 
@@ -97,7 +97,7 @@ expectNoMessagesFor waitTime messages = go waitTime
 
 
 actionAndWait :: (Eq a, Show a) => IO () -> TVar [a] -> [a] -> IO ()
-actionAndWait = actionAndWaitWithWaitTime 400_000
+actionAndWait = actionAndWaitWithWaitTime 800_000
 
 actionAndWaitWithWaitTime :: (Eq a, Show a) => Int -> IO () -> TVar [a] -> [a] -> IO ()
 actionAndWaitWithWaitTime waitTime action messages messagesToWaitFor = do
@@ -125,7 +125,7 @@ sendAndWaitWithWaitTime waitTime send messages msg messagesToWaitFor = do
 
 
 sendAndWait :: (Eq a, Show a) => SendCommand -> TVar [a] -> Maybe Command -> [a] -> IO ()
-sendAndWait = sendAndWaitWithWaitTime 400_000
+sendAndWait = sendAndWaitWithWaitTime 800_000
 
 doLogin :: SendCommand -> TVar [ServerMessage] -> IO ()
 doLogin send msgs = do
@@ -169,7 +169,7 @@ spec = describe "WowApp" $ do
       sendAndWait send msgs (Just $ CmdFilter "abc") [SMAcknowledge "filter"]
       let action1 = sendStreamEntryAction cfg (StreamEntry{tweet = Tweet { text = "This is a tweet", tweetId = "1" }, matchingRules = Nothing})
       actionAndWait action1 msgs []
-      expectNoMessagesFor 400_000 msgs
+      expectNoMessagesFor 800_000 msgs
       sendAndWait send msgs Nothing []
   it "should filter events that don't match the given filter" . withApp $ \cfg -> do
     withClient cfg.port "Pim" $ \(send, msgs) -> do
