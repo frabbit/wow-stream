@@ -72,4 +72,4 @@ jobs:
     - run: stack --allow-different-user build old-time
     - run: stack --allow-different-user build network
     - run: stack --allow-different-user build
-    - run: stack --allow-different-user test --ghc-options "-O0 -j4 +RTS -A128m -n2m -RTS" wow-stream:wow-stream-test-e2e
+    #- run: stack --allow-different-user test --ghc-options "-O0 -j4 +RTS -A128m -n2m -RTS" wow-stream:wow-stream-test-e2e
