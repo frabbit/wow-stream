@@ -31,7 +31,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-${{ matrix.ghc }}-stack
     - run: env
+    # There is a bug related to the compilation order of Stack which causes a failure when compiling old-time and network together with
+    # all other packages, see: https://github.com/tek/incipit/issues/1 and https://github.com/commercialhaskell/stack/issues/5414
     - run: stack build old-time
+    - run: stack build network
     - run: stack build
     - run: make test-unit
     - run: make test-e2e
