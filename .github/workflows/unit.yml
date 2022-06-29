@@ -9,8 +9,6 @@ jobs:
   unit:
     name: unit tests - stack / ghc ${{ matrix.ghc }}
     runs-on: ubuntu-20.04
-    container:
-      image: haskell:9.0.2-buster
     strategy:
       matrix:
         stack: ["2.7.5"]
@@ -32,8 +30,9 @@ jobs:
 #        key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
 #        restore-keys: |
 #          ${{ runner.os }}-${{ matrix.ghc }}-stack
-    - name: Permissions bug workaround
-      run: "chown -R $(id -un):$(id -gn) ~"
+    - run: docker -v
+    - run: docker build .
+    - run: make build-run-docker
     - run: env
     - run: stack --allow-different-user build
     - run: make test-unit

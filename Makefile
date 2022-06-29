@@ -47,3 +47,6 @@ test-unit:
 .PHONY: test-e2e
 test-e2e:
 	stack test --ghc-options "-O0 -j4 +RTS -A128m -n2m -RTS" wow-stream:wow-stream-test-e2e
+
+build-run-docker:
+	docker run --rm -it $(docker build -q .)
