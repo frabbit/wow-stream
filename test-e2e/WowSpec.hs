@@ -72,7 +72,7 @@ withApp action = do
         traceShowM port
         let config = defaultAppConfig{port, twitterStreamSource }
         a <- async $ WA.main config
-        threadDelay 80_000 -- dirty, improve this by checking if the endpoint is available
+        threadDelay 180_000 -- dirty, improve this by checking if the endpoint is available
         pure (a, config)
     )
     (uninterruptibleCancel . fst)
@@ -97,7 +97,7 @@ expectNoMessagesFor waitTime messages = go waitTime
 
 
 actionAndWait :: (Eq a, Show a) => IO () -> TVar [a] -> [a] -> IO ()
-actionAndWait = actionAndWaitWithWaitTime 800_000
+actionAndWait = actionAndWaitWithWaitTime 1200_000
 
 actionAndWaitWithWaitTime :: (Eq a, Show a) => Int -> IO () -> TVar [a] -> [a] -> IO ()
 actionAndWaitWithWaitTime waitTime action messages messagesToWaitFor = do
@@ -125,7 +125,7 @@ sendAndWaitWithWaitTime waitTime send messages msg messagesToWaitFor = do
 
 
 sendAndWait :: (Eq a, Show a) => SendCommand -> TVar [a] -> Maybe Command -> [a] -> IO ()
-sendAndWait = sendAndWaitWithWaitTime 800_000
+sendAndWait = sendAndWaitWithWaitTime 1200_000
 
 doLogin :: SendCommand -> TVar [ServerMessage] -> IO ()
 doLogin send msgs = do
