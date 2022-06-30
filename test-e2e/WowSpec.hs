@@ -72,10 +72,12 @@ withApp action = do
         traceShowM port
         let config = defaultAppConfig{port, twitterStreamSource }
         a <- async $ WA.main config
-        threadDelay 880_000 -- dirty, improve this by checking if the endpoint is available
+        threadDelay 2_880_000 -- dirty, improve this by checking if the endpoint is available
         pure (a, config)
     )
-    (uninterruptibleCancel . fst)
+    (\x -> do
+      traceShowM ("cancel Server"::Text)
+      uninterruptibleCancel . fst $ x)
     (\(_,config) -> do
       x <- action config
       threadDelay 80_000
