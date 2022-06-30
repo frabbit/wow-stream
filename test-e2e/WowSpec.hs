@@ -69,16 +69,15 @@ withApp action = do
         (r::Integer) <- randomRIO (1_024, 49_151)
         let port = integerToNatural r
         twitterStreamSource <- WA.TSSFakeChannel <$> newTChanIO
-        traceShowM port
         let config = defaultAppConfig{port, twitterStreamSource }
         a <- async $ WA.main config
-        threadDelay 50_000 -- dirty, improve this by checking if the endpoint is available
+        threadDelay 80_000 -- dirty, improve this by checking if the endpoint is available
         pure (a, config)
     )
     (uninterruptibleCancel . fst)
     (\(_,config) -> do
       x <- action config
-      threadDelay 50_000
+      threadDelay 80_000
       pure x
     )
 
@@ -113,7 +112,7 @@ actionAndWaitWithWaitTime waitTime action messages messagesToWaitFor = do
   pure ()
   where
     f = do
-      a <- async $ forM_ messagesToWaitFor $ removeFromReceived messages
+      a <- async $ if null messagesToWaitFor then do threadDelay (max 10_000 (waitTime - 50_000)) else forM_ messagesToWaitFor $ removeFromReceived messages
       action
       wait a
 

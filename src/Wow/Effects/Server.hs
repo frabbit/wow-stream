@@ -28,7 +28,6 @@ interpretServer port = reinterpretH $ \case
     cb <- bindT callback
     is <- getInitialStateT
     liftT $ runServer "127.0.0.1" (fromInteger $ naturalToInteger port) $ \pending -> do
-
       conn <- acceptRequest pending
       let
         cleanup = do
