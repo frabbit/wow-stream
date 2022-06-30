@@ -112,7 +112,7 @@ actionAndWaitWithWaitTime waitTime action messages messagesToWaitFor = do
   pure ()
   where
     f = do
-      a <- async $ forM_ messagesToWaitFor $ removeFromReceived messages
+      a <- async $ if null messagesToWaitFor then do threadDelay (max 10_000 (waitTime - 50_000)) else forM_ messagesToWaitFor $ removeFromReceived messages
       action
       wait a
 
