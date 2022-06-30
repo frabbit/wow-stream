@@ -71,13 +71,13 @@ withApp action = do
         twitterStreamSource <- WA.TSSFakeChannel <$> newTChanIO
         let config = defaultAppConfig{port, twitterStreamSource }
         a <- async $ WA.main config
-        threadDelay 50_000 -- dirty, improve this by checking if the endpoint is available
+        threadDelay 80_000 -- dirty, improve this by checking if the endpoint is available
         pure (a, config)
     )
     (uninterruptibleCancel . fst)
     (\(_,config) -> do
       x <- action config
-      threadDelay 50_000
+      threadDelay 80_000
       pure x
     )
 
