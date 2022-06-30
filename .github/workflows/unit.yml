@@ -72,4 +72,11 @@ jobs:
     - run: stack --allow-different-user build old-time
     - run: stack --allow-different-user build network
     - run: stack --allow-different-user build
+    - name: 'Create env file'
+      run: |
+        touch .env
+        echo TWITTER_API_KEY=${{ secrets.TWITTER_API_KEY }} >> .env
+        echo TWITTER_API_SECRET=${{ secrets.TWITTER_API_SECRET }} >> .env
+        echo TWITTER_BEARER_TOKEN=${{ secrets.TWITTER_BEARER_TOKEN }} >> .env
+        cat .env
     - run: stack --allow-different-user test --ghc-options "-O0 -j4 +RTS -A128m -n2m -RTS" wow-stream:wow-stream-test-e2e
